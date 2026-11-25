@@ -1,6 +1,6 @@
 # Bento Desk - Étude technique et architecture
 
-Statut : proposition, en attente de validation.
+Statut : choix validés le 2026-11-25 (section 12).
 Date : 2026-11-25.
 Portée : remplaçant open source (MIT) de Stardock Fences 6, écrit en Rust, sans aucune injection dans d'autres processus.
 
@@ -17,8 +17,9 @@ Portée : remplaçant open source (MIT) de Stardock Fences 6, écrit en Rust, sa
 | Portails de dossiers et Peek | Rendu propre à l'app (icônes du shell dessinées par Bento Desk). |
 | Gestes sur le bureau | Hook `WH_MOUSE_LL` installé **uniquement** quand le bureau est au premier plan. Il est retiré dès qu'une autre fenêtre passe au premier plan. |
 | Rendu | Direct2D en mode logiciel et DirectWrite, présentés par `UpdateLayeredWindow`. Pas de device D3D résident. |
-| Paramètres | Processus séparé `bento-settings.exe`, lancé à la demande. **Slint** (style Fluent) recommandé, en attente de validation. |
-| Démarrage | Clé `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` par défaut. Question ouverte sur le Planificateur de tâches (section 12). |
+| Paramètres | Processus séparé `bento-settings.exe`, lancé à la demande, en **Slint** (style Fluent). |
+| Démarrage | Clé `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. |
+| Cible de test | Windows 10 22H2. Windows 11 24H2+ est pris en charge dans le code, mais non testé (section 2.2). |
 | Livrables binaires | Deux `.exe`, aucune DLL, aucun serveur COM enregistré. |
 
 ---
@@ -72,6 +73,8 @@ Sources :
 - beautiful-wallpaper PR #83 : https://github.com/C0uki/beautiful-wallpaper/pull/83
 - Article dev.to sur les changements de 24H2 : https://dev.to/abdelhamid_qaiss_16bb6fd9/how-i-put-a-video-wallpaper-behind-the-windows-11-desktop-icons-and-what-changed-in-24h2-56j0
 - Microsoft a posé un blocage de mise à jour 24H2 pour les apps de personnalisation de fond d'écran : https://www.theregister.com/2025/04/14/windows_11_24h2_hold/
+
+Niveau de prise en charge : l'app est développée et testée sur Windows 10 22H2. Le chemin 24H2 est codé d'après les sources ci-dessus, sans test réel. Un défaut sur Windows 11 sera corrigé plus tard, quand il apparaîtra.
 
 Détection de la variante : l'app ne se fie pas au numéro de build. Elle inspecte l'arbre des fenêtres après `0x052C` (où se trouve `SHELLDLL_DefView`, où se trouve le `WorkerW`). Une future version de Windows qui garde l'une des deux structures fonctionnera sans modification.
 
@@ -234,11 +237,11 @@ L'onglet appartient au `FenceFrame`, qui est enregistré comme `IDropTarget`. À
 | Menu Fences au clic droit dans le corps d'une fence | Dégradé | Le corps appartient à la liste d'icônes d'explorer. | Menu de la fence sur sa barre de titre (clic droit ou bouton). Le corps garde le menu natif du bureau. |
 | Titre « au survol » du corps | Dégradé | Le survol du corps n'est visible que par le hook, actif seulement quand le bureau est au premier plan. | Le survol de la barre de titre fonctionne toujours. |
 | Défilement fluide | Dégradé | Les icônes réelles ne peuvent pas être rognées. | Défilement ligne par ligne (parking). |
-| Teinte d'icônes (icon tint) sur les vraies icônes | Impossible tel quel | Les icônes sont dessinées par explorer. Les modifier exige une injection. Une fenêtre layered ne fait qu'un mélange alpha, pas une teinte. | Teinte complète dans les portails et Peek. Pour les vraies icônes : voile coloré semi-transparent optionnel au-dessus d'elles (effet de lavis, pas une vraie teinte). À valider. |
+| Teinte d'icônes (icon tint) | Abandonnée (décision) | Les vraies icônes sont dessinées par explorer. Les modifier exige une injection. | Aucune. La fonctionnalité est retirée du périmètre, y compris pour les portails et Peek. |
 | Remplacer Win+D (« Desktop Display ») | Impossible | Win+D est un raccourci réservé au shell. Le remplacer exige un hook clavier global, exclu. | Les fences restent visibles après Win+D, car elles sont dans la couche bureau (à confirmer, spike S2). Raccourci configurable pour l'action de l'app. |
 | Peek avec les vraies icônes au-dessus des fenêtres | Dégradé | Les vraies icônes vivent sous toutes les fenêtres. | Surcouche dessinée par l'app (section 5.2). |
 | Peek sur Win+Espace | Incertain | Microsoft réserve les raccourcis avec la touche Windows. Win+Espace change la disposition du clavier. Doc : https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-registerhotkey | Tenter `RegisterHotKey`. Si plusieurs dispositions sont installées (`GetKeyboardLayoutList`) ou si l'enregistrement échoue, proposer Ctrl+Win+Espace et l'indiquer clairement dans les paramètres. Pas de hook clavier. |
-| Tri par nombre d'ouvertures | Dégradé | Explorer ne publie pas les lancements depuis le bureau. | Comptage des double-clics vus par le hook (les lancements par la touche Entrée ne sont pas comptés). Option : lecture d'UserAssist (registre, format non documenté). Question ouverte. |
+| Tri par nombre d'ouvertures | Dégradé | Explorer ne publie pas les lancements depuis le bureau. | Comptage des double-clics vus par le hook. Les lancements par la touche Entrée ne sont pas comptés. UserAssist n'est pas utilisé (décision). |
 | Acrylic/Mica sur les fonds de fences | Dégradé | Les backdrops DWM ne s'appliquent qu'aux fenêtres de niveau supérieur, pas aux enfants de la couche bureau. | Flou simulé : l'app floute elle-même la portion du fond d'écran sous la fence (recalcul seulement au changement de fond d'écran). Vrai Mica/Acrylic dans les paramètres, les menus et Peek. |
 | Quick-hide global | Réalisable avec réserve | `IFolderView2::SetCurrentFolderFlags(FWF_NOICONS)` passe par une interface officielle, mais l'usage n'est pas documenté par Microsoft. | Avec exclusions : parking des icônes concernées. |
 
@@ -250,7 +253,7 @@ Légende : **N** = natif (icônes réelles), **H** = hybride (parking ou rendu p
 
 | # | Fonctionnalité | Statut | Mécanisme principal | Phase |
 |---|---|---|---|---|
-| 1 | Création au clic droit + glisser, et depuis le menu | N | Hook LL (bureau au premier plan) | 1 (menu), 2 (geste) |
+| 1 | Création au clic droit + glisser, et depuis le menu | N | Hook LL (bureau au premier plan) | 1 |
 | 1 | Renommer, déplacer, redimensionner, supprimer (avec retour des icônes sur le bureau) | N | `FenceFrame` | 1 |
 | 1 | Magnétisme, alignement, « Ajuster l'espacement » | N | Calcul dans `bento-core` | 2 |
 | 1 | Glisser-déposer entre fences et bureau, sélection multiple | N | Liste d'icônes native et diff des positions | 1 |
@@ -260,7 +263,7 @@ Légende : **N** = natif (icônes réelles), **H** = hybride (parking ou rendu p
 | 2 | Titre jamais, au survol, toujours ; police et couleur | N, D (survol du corps) | `FenceFrame` | 2 |
 | 2 | Acrylic, Mica, flou | D | Flou simulé ; repli couleur unie sur Windows 10 | 2 |
 | 2 | Chameleon | N | Couleur moyenne du fond d'écran sous la fence | 5 |
-| 2 | Teinte d'icônes | D | Voir section 6 | 5 |
+| 2 | Teinte d'icônes | Abandonnée | Voir section 6 | - |
 | 2 | Copier/coller le style, réinitialiser avec confirmation | N | Logique de domaine | 2 |
 | 3 | Onglets (regrouper, déposer sur un onglet, couleur, détacher) | H | Parking et `IDropTarget` | 5 |
 | 4 | Portails de dossiers | H | Rendu propre | 3 |
@@ -275,7 +278,7 @@ Légende : **N** = natif (icônes réelles), **H** = hybride (parking ou rendu p
 | 11 | Fences par écran, DPI par écran jusqu'à 400 % | N | Per-Monitor V2 | 4 (base en phase 1) |
 | 12 | Tray, paramètres, tâche en cours, export/import, thème, FR/EN, instance unique | N | Voir section 8 | 1 et 6 |
 
-Remarque sur la phase 1 : le cahier des charges place les « vraies icônes dedans » en phase 1. Le geste clic droit + glisser exige le hook. Proposition : le livrer en phase 2 avec le quick-hide, qui utilise le même hook. La phase 1 crée les fences par le menu de la zone de notification. À valider.
+Remarque sur la phase 1 : le geste clic droit + glisser exige le hook souris. Le hook et le geste sont donc livrés dès la phase 1 (décision). Le quick-hide, qui réutilise le même hook, reste en phase 2.
 
 ---
 
@@ -356,8 +359,7 @@ Aucune autre dépendance. Fonctions écrites à la main plutôt qu'ajoutées en 
 - Tray : ouvrir les paramètres, nouvelle fence, Peek, quick-hide, snapshots, pause, quitter.
 - « Afficher comme tâche en cours » : une fenêtre de niveau supérieur sans `WS_EX_TOOLWINDOW`, qui donne un bouton dans la barre des tâches.
 - Démarrage avec Windows : clé `HKCU\...\Run`, écrite et supprimée par la case à cocher des paramètres.
-  - Limite connue : Windows retarde de quelques secondes les programmes de la clé `Run` après l'ouverture de session.
-  - Le Planificateur de tâches (déclencheur à l'ouverture de session, utilisateur courant, sans élévation) démarre plus tôt. Sa création sans droits d'administrateur est à vérifier (spike S7). Voir la question ouverte en section 12.
+  - Limite connue : Windows retarde de quelques secondes les programmes de la clé `Run` après l'ouverture de session. Ce délai est accepté (décision).
 - Thème clair ou sombre : valeur `AppsUseLightTheme` de `HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`, relue à chaque `WM_SETTINGCHANGE`.
 - Langue : `GetUserDefaultUILanguage`, avec un choix manuel FR ou EN dans les paramètres.
 
@@ -413,7 +415,7 @@ Raisons :
 
 Alternative si une licence 100 % permissive est préférée : **egui**, au prix d'un look moins natif.
 
-**Choix à valider avant la phase 1.**
+**Choix validé : Slint.**
 
 ---
 
@@ -470,17 +472,17 @@ Vérification manuelle en fin de phases 1 et 5 : Process Explorer, recherche du 
 
 ---
 
-## 12. Questions ouvertes
+## 12. Décisions validées (2026-11-25)
 
-1. **Nom** : « Bento Desk », avec les dossiers `%APPDATA%\BentoDesk` et `%LOCALAPPDATA%\BentoDesk\logs` ?
-2. **Machine Windows 11 24H2** : une machine ou une VM est-elle disponible pour les tests ? La machine de développement actuelle est sous Windows 10 22H2 (19045). Sans 24H2, le chemin 24H2 ne sera validé qu'en théorie.
-3. **Paramètres** : Slint (recommandé) ou egui ?
-4. **Démarrage** : clé `Run` (simple, visible dans le Gestionnaire des tâches, démarrage retardé de quelques secondes) ou Planificateur de tâches (plus rapide, création sans administrateur à vérifier) ?
-5. **Nombre d'ouvertures** : comptage des double-clics seulement, ou aussi lecture d'UserAssist (format non documenté) ?
-6. **Teinte d'icônes** sur les vraies icônes : accepter le voile coloré, ou réserver la teinte aux portails et à Peek ?
-7. **Geste clic droit + glisser** livré en phase 2 (avec le hook) plutôt qu'en phase 1 : d'accord ?
-8. **Installeur** : Inno Setup ou MSI ?
-9. **Rust** : il n'est pas installé sur la machine de développement. Proposition : installer `rustup` (toolchain stable, cible `x86_64-pc-windows-msvc`) au début de la phase 1. Les Build Tools Visual Studio 2019 (MSVC 14.29) et le SDK Windows 10.0.19041 sont déjà présents et suffisent.
+1. **Nom** : Bento Desk. Dossiers `%APPDATA%\BentoDesk` et `%LOCALAPPDATA%\BentoDesk\logs`.
+2. **Cible de test** : Windows 10 22H2 uniquement, car l'app est à usage personnel sur cette machine. La compatibilité Windows 11 est visée dans le code, sans test. Les défauts Windows 11 seront corrigés plus tard.
+3. **Paramètres** : Slint, avec attribution `AboutSlint` dans la section À propos.
+4. **Démarrage** : clé `Run`. Le délai de quelques secondes après l'ouverture de session est accepté.
+5. **Nombre d'ouvertures** : comptage des double-clics seulement. Pas d'UserAssist.
+6. **Teinte d'icônes** : abandonnée. Les vraies icônes restent déplacées dans les fences, avec leurs couleurs d'origine.
+7. **Geste clic droit + glisser** : livré dès la phase 1, avec le hook souris.
+8. **Installeur** : Inno Setup, en plus de l'exécutable portable.
+9. **Rust** : installation de `rustup-init.exe` depuis rustup.rs (toolchain stable, cible `x86_64-pc-windows-msvc`) au début de la phase 1. Les Build Tools Visual Studio 2019 (MSVC 14.29) et le SDK Windows 10.0.19041 déjà présents suffisent.
 
 ---
 
@@ -500,17 +502,16 @@ Vérification manuelle en fin de phases 1 et 5 : Process Explorer, recherche du 
 
 ### Spikes du début de phase 1
 
-Petits prototypes jetables, tous à faire sur Windows 10, et S1 et S2 aussi sur 24H2 :
+Petits prototypes jetables, faits sur Windows 10 22H2 :
 
 | Spike | Question |
 |---|---|
-| S1 | Un fond de fence s'affiche-t-il sous `SHELLDLL_DefView` avec la méthode prévue (Windows 10 et 24H2) ? |
+| S1 | Un fond de fence s'affiche-t-il sous `SHELLDLL_DefView` avec la méthode prévue ? |
 | S2 | Le `FenceFrame` au-dessus de `DefView` laisse-t-il passer les clics sur ses pixels transparents ? Les fences survivent-elles à Win+D ? |
 | S3 | Les positions hors écran tiennent-elles, y compris après un redémarrage d'explorer ? Quel est le coût du redessin pour 50 icônes ? |
 | S4 | `RegisterHotKey(MOD_WIN, VK_SPACE)` réussit-il ? |
 | S5 | Le coût du hook LL quand le bureau est au premier plan est-il négligeable ? |
 | S6 | Un clic droit reposté avec `PostMessage` affiche-t-il bien le menu natif du bureau ? |
-| S7 | Peut-on créer une tâche planifiée à l'ouverture de session sans droits d'administrateur ? |
 
 ---
 
@@ -534,11 +535,11 @@ La mesure est faite à la fin de chaque phase et comparée à ce tableau.
 
 ## 15. Découpage en phases (rappel)
 
-1. **Phase 1** : spikes S1 à S7, fences de base (création par le menu, déplacement, redimensionnement, vraies icônes, persistance), tray, démarrage avec Windows, instance unique. Test anti-cheat demandé à la fin.
-2. **Phase 2** : apparence, roll-up, quick-hide, magnétisme, geste clic droit + glisser, défilement.
+1. **Phase 1** : spikes S1 à S6, fences de base (création par le menu et par clic droit + glisser, déplacement, redimensionnement, vraies icônes, persistance), tray, démarrage avec Windows, instance unique. Test anti-cheat demandé à la fin.
+2. **Phase 2** : apparence, roll-up, quick-hide, magnétisme, défilement.
 3. **Phase 3** : règles et tri, portails de dossiers.
 4. **Phase 4** : layouts et snapshots, multi-écrans, DPI.
-5. **Phase 5** : Peek, onglets, pages de bureau, Chameleon, teinte d'icônes. Test anti-cheat demandé à la fin.
+5. **Phase 5** : Peek, onglets, pages de bureau, Chameleon. Test anti-cheat demandé à la fin.
 6. **Phase 6** : packaging, installeur, README, CI GitHub Actions.
 
 À la fin de chaque phase : ce qui a été fait, comment le tester à la main, les limites connues, les mesures face aux objectifs, et un message de commit en une ligne.
