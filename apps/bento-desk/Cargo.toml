@@ -1,0 +1,28 @@
+[package]
+name = "bento-desk"
+description = "Bento Desk: desktop fences without any injection into other processes."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "bento-desk"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+bento-config.workspace = true
+bento-core.workspace = true
+bento-render.workspace = true
+bento-win.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+
+[build-dependencies]
+embed-resource.workspace = true
+
+[lints]
+workspace = true
