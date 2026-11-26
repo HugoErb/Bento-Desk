@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Format, lint, test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: No injection API
+        shell: bash
+        run: bash scripts/check-no-injection.sh
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+
+  build:
+    name: Release ${{ matrix.arch }}
+    needs: check
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            target: x86_64-pc-windows-msvc
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: No DLL produced
+        shell: bash
+        run: |
+          if ls target/${{ matrix.target }}/release/*.dll 2>/dev/null; then
+            echo "error: a DLL was built" >&2
+            exit 1
+          fi
+      - name: Version
+        id: version
+        shell: bash
+        run: echo "version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Portable zip
+        shell: pwsh
+        run: |
+          $out = "dist/BentoDesk-${{ steps.version.outputs.version }}-${{ matrix.arch }}-portable"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item target/${{ matrix.target }}/release/bento-desk.exe, target/${{ matrix.target }}/release/bento-settings.exe, LICENSE, README.md $out
+          New-Item -ItemType File -Path "$out/portable.txt" | Out-Null
+          Compress-Archive -Path "$out/*" -DestinationPath "$out.zip"
+      - name: Installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            /DAppVersion=${{ steps.version.outputs.version }} `
+            /DArch=${{ matrix.arch }} `
+            /DBinDir=..\target\${{ matrix.target }}\release `
+            installer\bento-desk.iss
+      - name: Checksums
+        shell: bash
+        run: cd dist && sha256sum *.zip *.exe > SHA256SUMS-${{ matrix.arch }}.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bento-desk-${{ matrix.arch }}
+          path: |
+            dist/*.zip
+            dist/*.exe
+            dist/SHA256SUMS-*.txt
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

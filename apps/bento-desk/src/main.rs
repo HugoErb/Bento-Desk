@@ -32,14 +32,24 @@ fn main() {
 }
 
 /// `bento-desk.exe --command <json>` sends an [`IpcCmd`] to the running
-/// instance and exits (used by scripts and the installer).
-fn send_command(json: &str) -> anyhow::Result<()> {
-    let cmd: IpcCmd = serde_json::from_str(json)?;
+/// instance and exits (used by scripts and the installer). A command
+/// without arguments can be given by name alone: `--command quit`.
+fn send_command(arg: &str) -> anyhow::Result<()> {
+    let cmd = parse_command(arg)?;
     let w = window::find_window(DAEMON_CLASS).ok_or_else(|| anyhow::anyhow!("not running"))?;
     if !send_copydata(w, COPYDATA_KIND, &cmd.to_bytes()) {
         anyhow::bail!("the running instance did not answer");
     }
     Ok(())
+}
+
+fn parse_command(arg: &str) -> anyhow::Result<IpcCmd> {
+    let arg = arg.trim();
+    if arg.starts_with('{') {
+        Ok(serde_json::from_str(arg)?)
+    } else {
+        Ok(serde_json::from_value(serde_json::json!({ "cmd": arg }))?)
+    }
 }
 
 fn run() -> anyhow::Result<()> {
@@ -70,4 +80,23 @@ fn run() -> anyhow::Result<()> {
     app::uninstall();
     tracing::info!("Bento Desk stopped ({code})");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_by_name_or_json() {
+        assert_eq!(parse_command("quit").unwrap(), IpcCmd::Quit);
+        assert_eq!(
+            parse_command("restore_explorer_options").unwrap(),
+            IpcCmd::RestoreExplorerOptions
+        );
+        assert_eq!(
+            parse_command(r#"{"cmd":"save_snapshot","name":"a"}"#).unwrap(),
+            IpcCmd::SaveSnapshot { name: "a".into() }
+        );
+        assert!(parse_command("nope").is_err());
+    }
 }
