@@ -38,8 +38,9 @@ pub struct FrameDrag {
     pub start_rect: Rect,
 }
 
-/// Duration of the roll-up and unroll animation.
-const ROLL_ANIM_MS: f32 = 180.0;
+/// Bounds of the roll-up animation duration (milliseconds).
+const ROLL_ANIM_MIN_MS: u32 = 50;
+const ROLL_ANIM_MAX_MS: u32 = 2000;
 /// While a fence is temporarily open, how often the pointer is checked.
 const COLLAPSE_POLL_MS: u32 = 40;
 
@@ -49,12 +50,13 @@ const COLLAPSE_POLL_MS: u32 = 40;
 pub struct RollAnim {
     from_bottom: i32,
     start: std::time::Instant,
+    duration_ms: f32,
 }
 
 impl RollAnim {
     fn progress(&self, now: std::time::Instant) -> f32 {
         let ms = now.saturating_duration_since(self.start).as_secs_f32() * 1000.0;
-        (ms / ROLL_ANIM_MS).clamp(0.0, 1.0)
+        (ms / self.duration_ms).clamp(0.0, 1.0)
     }
 
     fn done(&self, now: std::time::Instant) -> bool {
@@ -369,6 +371,11 @@ impl App {
             })
             .unwrap_or(0);
         let animate = self.config.rollup.animate;
+        let anim_ms = self
+            .config
+            .rollup
+            .anim_ms
+            .clamp(ROLL_ANIM_MIN_MS, ROLL_ANIM_MAX_MS) as f32;
         let ui = &mut self.fences[i];
         if let Some(m) = &mon {
             ui.dpi = m.dpi.max(96);
@@ -394,6 +401,7 @@ impl App {
             ui.anim = Some(RollAnim {
                 from_bottom: ui.rect.bottom,
                 start: now,
+                duration_ms: anim_ms,
             });
             start_anim = true;
         }
@@ -1433,13 +1441,14 @@ mod roll_anim_tests {
         let a = RollAnim {
             from_bottom: 130,
             start,
+            duration_ms: 180.0,
         };
         assert_eq!(a.bottom(330, start), 130);
         let mid = a.bottom(330, start + Duration::from_millis(90));
         // Ease-out: past the halfway point at half time.
         assert!(mid > 230 && mid < 330, "{mid}");
         assert!(!a.done(start + Duration::from_millis(90)));
-        let end = start + Duration::from_millis(ROLL_ANIM_MS as u64);
+        let end = start + Duration::from_millis(180);
         assert_eq!(a.bottom(330, end), 330);
         assert!(a.done(end));
         // Rolling up goes the other way.

@@ -669,6 +669,12 @@ msgstr "Automatique : couleur du Bento, légèrement assombrie."
 msgid "Animate rolling up"
 msgstr "Animer l'enroulement"
 
+msgid "Animation duration"
+msgstr "Durée de l'animation"
+
+msgid "Milliseconds to open or roll up a Bento completely."
+msgstr "En millisecondes, pour ouvrir ou enrouler complètement un Bento."
+
 msgid "The height changes smoothly. Off: the change is instant."
 msgstr "La hauteur change en douceur. Désactivé : le changement est instantané."
 
