@@ -539,6 +539,10 @@ impl App {
                 l.normalize();
                 self.state.layouts.push(l);
             }
+            if self.state.current_layout != self.layout_key {
+                self.state.current_layout = self.layout_key.clone();
+                self.mark_dirty();
+            }
             tracing::info!("layout: {}", describe(&self.monitors));
         }
         self.rebuild_fences();

@@ -355,6 +355,9 @@ pub struct DesktopState {
     /// Positions of free icons hidden by quick-hide, to put them back after
     /// a crash.
     pub parked_free_icons: BTreeMap<ItemKey, Point>,
+    /// Key of the layout shown by the resident app. It can differ from the
+    /// key of the connected monitors when automatic restore is off.
+    pub current_layout: String,
 }
 
 impl DesktopState {

@@ -404,9 +404,7 @@ impl App {
 /// Drive or share of a path, lower case (`c:`, `\\server\share`).
 fn volume(p: &str) -> String {
     match Path::new(p).components().next() {
-        Some(std::path::Component::Prefix(pre)) => {
-            pre.as_os_str().to_string_lossy().to_lowercase()
-        }
+        Some(std::path::Component::Prefix(pre)) => pre.as_os_str().to_string_lossy().to_lowercase(),
         _ => String::new(),
     }
 }

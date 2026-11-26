@@ -78,23 +78,22 @@ impl Ctl {
     }
 
     /// Layout of the current display configuration.
-    fn layout(&self) -> Option<&Layout> {
+    /// Index of the layout shown by the resident app, or of the one of the
+    /// connected monitors.
+    fn layout_index(&self) -> usize {
         let key = display_key(&self.monitors);
-        self.state
-            .layouts
-            .iter()
-            .find(|l| l.key == key)
-            .or_else(|| self.state.layouts.first())
+        let find = |k: &str| self.state.layouts.iter().position(|l| l.key == k);
+        find(&self.state.current_layout)
+            .or_else(|| find(&key))
+            .unwrap_or(0)
+    }
+
+    fn layout(&self) -> Option<&Layout> {
+        self.state.layouts.get(self.layout_index())
     }
 
     fn layout_mut(&mut self) -> Option<&mut Layout> {
-        let key = display_key(&self.monitors);
-        let idx = self
-            .state
-            .layouts
-            .iter()
-            .position(|l| l.key == key)
-            .unwrap_or(0);
+        let idx = self.layout_index();
         self.state.layouts.get_mut(idx)
     }
 

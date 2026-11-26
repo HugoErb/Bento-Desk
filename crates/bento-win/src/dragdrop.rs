@@ -221,7 +221,9 @@ fn parse(path: &str) -> Option<Pidl> {
 /// files, exactly as when dragging from an Explorer window.
 pub fn drag_out(hwnd: Hwnd, paths: &[String]) -> bool {
     use windows::Win32::System::Ole::{DROPEFFECT_COPY, DROPEFFECT_LINK};
-    use windows::Win32::UI::Shell::{BHID_DataObject, SHCreateShellItemArrayFromIDLists, SHDoDragDrop};
+    use windows::Win32::UI::Shell::{
+        BHID_DataObject, SHCreateShellItemArrayFromIDLists, SHDoDragDrop,
+    };
     let pidls: Vec<Pidl> = paths.iter().filter_map(|p| parse(p)).collect();
     if pidls.is_empty() {
         return false;
