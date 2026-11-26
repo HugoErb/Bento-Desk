@@ -11,7 +11,7 @@ use bento_core::settings::OpenTrigger;
 use bento_core::snap::{self, Edges, SnapConfig};
 use bento_render::fence::{
     BackdropView, FrameHit, FrameLayout, FrameView, PortalHeader, ScrollView, TabView,
-    draw_backdrop, draw_frame,
+    border_width, draw_backdrop, draw_frame,
 };
 use bento_win::Hwnd;
 use bento_win::desktop::DesktopLayer;
@@ -189,13 +189,26 @@ fn effective_style(app: &App, tab: Option<&Tab>) -> FenceStyle {
 }
 
 impl App {
-    fn snap_config(&self, dpi: u32) -> SnapConfig {
+    pub(crate) fn snap_config(&self, i: usize, dpi: u32) -> SnapConfig {
         SnapConfig {
             to_edges: self.config.layout.snap_to_edges,
             to_fences: self.config.layout.snap_to_fences,
             threshold: dip_to_px(i32::from(self.config.layout.snap_distance), dpi),
             gap: dip_to_px(i32::from(self.config.layout.snap_gap), dpi),
+            border: self.fence_border(i),
         }
+    }
+
+    /// Border width of a fence, from the style of its active tab.
+    fn fence_border(&self, i: usize) -> i32 {
+        let Some(ui) = self.fences.get(i) else {
+            return 0;
+        };
+        let tab = self
+            .layout()
+            .and_then(|l| l.fence(ui.id))
+            .and_then(Fence::active);
+        border_width(&effective_style(self, tab))
     }
 
     /// Recreates the windows of every fence of the current page.
@@ -804,15 +817,18 @@ impl App {
             }
             k => k,
         };
-        let others: Vec<Rect> = self
+        let others: Vec<snap::Target> = self
             .fences
             .iter()
             .enumerate()
             .filter(|(j, _)| *j != i)
-            .map(|(_, f)| f.rect)
+            .map(|(j, f)| snap::Target {
+                rect: f.rect,
+                border: self.fence_border(j),
+            })
             .collect();
         let works: Vec<Rect> = self.monitors.iter().map(|m| m.work).collect();
-        let cfg = self.snap_config(dpi);
+        let cfg = self.snap_config(i, dpi);
         let m = FrameMetrics::for_dpi(dpi);
         let new_rect = match kind {
             DragKind::Move => Some(snap::snap_move(

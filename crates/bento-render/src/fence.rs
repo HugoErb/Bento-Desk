@@ -390,6 +390,12 @@ pub struct BackdropView<'a> {
     pub highlight: Option<Rgba>,
 }
 
+/// Width of the border drawn around a fence, in physical pixels.
+/// Magnetism uses it so that two snapped fences share one border line.
+pub fn border_width(style: &FenceStyle) -> i32 {
+    i32::from(style.border)
+}
+
 /// Draws a background: blurred wallpaper (optional), tint, border.
 pub fn draw_backdrop(c: &mut Canvas<'_>, v: &BackdropView<'_>) {
     let s = scale(v.dpi);
@@ -397,7 +403,8 @@ pub fn draw_backdrop(c: &mut Canvas<'_>, v: &BackdropView<'_>) {
     // a screen edge, meet without a half-transparent seam. Strokes stay
     // centred on the outermost pixel.
     let full = RectF::xywh(0.0, 0.0, v.width as f32, v.height as f32);
-    let r = full.inset(0.5);
+    let bw = border_width(v.style).max(1) as f32;
+    let r = full.inset(bw / 2.0);
     let radius = f32::from(v.style.corner_radius) * s;
     if v.style.effect == BackdropEffect::Blur
         && let Some((img, at)) = v.blur
@@ -412,7 +419,7 @@ pub fn draw_backdrop(c: &mut Canvas<'_>, v: &BackdropView<'_>) {
         } else {
             Rgba::new(255, 255, 255, 0x26)
         };
-        c.stroke_round_rect(r, radius, border, 1.0);
+        c.stroke_round_rect(r, radius, border, bw);
     }
     if let Some(h) = v.highlight {
         c.stroke_round_rect(r.inset(1.0), radius, h, 2.0 * s);

@@ -42,6 +42,8 @@ pub enum FenceCmd {
     ToggleDescending,
     Spacing(u16),
     FitContent,
+    /// Width of `span` columns out of `count` splitting the screen.
+    Width(u8, u8),
     CopyStyle,
     PasteStyle,
     PasteStyleAll,
@@ -56,6 +58,9 @@ pub enum FenceCmd {
     PortalChangeFolder,
     PortalOpen,
 }
+
+/// Screen widths offered in the fence menu: `span` columns out of `count`.
+const WIDTHS: [(u8, u8); 6] = [(1, 1), (1, 2), (1, 3), (2, 3), (1, 4), (3, 4)];
 
 /// Builds items and their commands in parallel (item id = index + 1).
 struct Builder {
@@ -247,6 +252,23 @@ impl App {
                 items.push(b.action(t(Msg::PortalChangeFolder), f(FenceCmd::PortalChangeFolder)));
             }
         }
+        if !fence.locked {
+            let current = self.fences.iter().find(|u| u.id == id).map(|u| u.full_rect);
+            let widths = WIDTHS
+                .iter()
+                .map(|&(span, count)| {
+                    let label = if span == count {
+                        t(Msg::WidthFull).to_owned()
+                    } else {
+                        Msg::WidthFraction.fmt(lang, &format!("{span}/{count}"))
+                    };
+                    let on = current.is_some()
+                        && self.column_rect(id, span, count).map(|(_, r)| r) == current;
+                    b.radio(&label, on, f(FenceCmd::Width(span, count)))
+                })
+                .collect();
+            items.push(MenuItem::submenu(t(Msg::FenceWidth), widths));
+        }
         items.push(MenuItem::separator());
         let mut style = vec![
             b.action(t(Msg::FenceAppearance), f(FenceCmd::Appearance)),
@@ -435,6 +457,7 @@ impl App {
                 self.relayout();
             }
             FenceCmd::FitContent => self.fit_content(id),
+            FenceCmd::Width(span, count) => self.fit_width(id, span, count),
             FenceCmd::CopyStyle => {
                 self.style_clip = Some(
                     self.layout()
@@ -598,6 +621,42 @@ impl App {
             if let Some(t) = f.active_mut() {
                 t.scroll_row = 0;
             }
+        }
+        self.mark_dirty();
+        self.update_fence_geometry(i);
+        self.render_backdrop(i);
+        self.render_frame(i);
+        self.relayout();
+    }
+
+    /// Full rectangle of a fence resized to `span` columns out of `count`
+    /// splitting the work area of its monitor, with the gap used by
+    /// magnetism between two columns.
+    fn column_rect(&self, id: FenceId, span: u8, count: u8) -> Option<(usize, Rect)> {
+        let i = self.fences.iter().position(|f| f.id == id)?;
+        let ui = &self.fences[i];
+        let full = ui.full_rect;
+        let work = bento_core::display::monitor_for_rect(&self.monitors, &full)?.work;
+        let cfg = self.snap_config(i, ui.dpi);
+        let r = bento_core::snap::fit_columns(
+            full,
+            &work,
+            i32::from(span),
+            i32::from(count),
+            cfg.gap_to(cfg.border),
+        );
+        Some((i, r))
+    }
+
+    /// Sets the fence width to a fraction of its screen (see `WIDTHS`).
+    fn fit_width(&mut self, id: FenceId, span: u8, count: u8) {
+        let Some((i, r)) = self.column_rect(id, span, count) else {
+            return;
+        };
+        if let Some(g) = bento_core::display::px_to_geometry(&r, &self.monitors)
+            && let Some(f) = self.layout_mut().and_then(|l| l.fence_mut(id))
+        {
+            f.geometry = g;
         }
         self.mark_dirty();
         self.update_fence_geometry(i);

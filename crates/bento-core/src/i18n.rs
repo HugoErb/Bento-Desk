@@ -103,6 +103,9 @@ messages! {
     SpacingNormal => "Normal", "Normal";
     SpacingWide => "Large", "Wide";
     FenceFitContent => "Ajuster la taille au contenu", "Fit size to content";
+    FenceWidth => "Largeur à l'écran", "Screen width";
+    WidthFull => "Toute la largeur", "Full width";
+    WidthFraction => "{} de l'écran", "{} of the screen";
     FenceCopyStyle => "Copier le style", "Copy style";
     FencePasteStyle => "Coller le style", "Paste style";
     FencePasteStyleAll => "Coller le style sur tous les Bentos", "Paste style to all Bentos";
