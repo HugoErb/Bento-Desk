@@ -270,6 +270,12 @@ msgstr "Le Bento s'ouvre jusqu'à ce que la souris le quitte."
 msgid "On click"
 msgstr "Au clic"
 
+msgid "Delay before rolling up again"
+msgstr "Délai avant de réenrouler"
+
+msgid "Milliseconds after the mouse leaves an opened Bento, 0 = at once."
+msgstr "En millisecondes après que la souris a quitté un Bento ouvert, 0 = immédiatement."
+
 msgid "Roll up new docked Bentos"
 msgstr "Enrouler les nouveaux Bentos ancrés"
 

@@ -29,6 +29,8 @@ pub struct Placed {
     pub hidden: bool,
     /// Active tab is a folder portal (no desktop icons shown).
     pub portal: bool,
+    /// During a roll animation: icons reaching below this line are parked.
+    pub clip_bottom: Option<i32>,
 }
 
 /// Inputs of a layout pass.
@@ -76,7 +78,14 @@ pub fn targets(inp: &LayoutInput<'_>) -> BTreeMap<String, Point> {
                         let grid = Grid::new(p.body, cell);
                         let pl = place(&grid, present.len(), tab.scroll_row, p.rolled);
                         for (i, pos) in pl.visible {
-                            out.insert(present[i].clone(), pos);
+                            let cut = p
+                                .clip_bottom
+                                .is_some_and(|c| pos.y + inp.desktop_spacing.height > c);
+                            if cut {
+                                park(present[i], &mut out);
+                            } else {
+                                out.insert(present[i].clone(), pos);
+                            }
                         }
                         for i in pl.hidden {
                             park(present[i], &mut out);
@@ -318,6 +327,7 @@ mod tests {
             rolled: false,
             hidden: false,
             portal: false,
+            clip_bottom: None,
         }
     }
 

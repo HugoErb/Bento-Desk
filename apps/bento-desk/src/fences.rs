@@ -42,6 +42,8 @@ pub struct FrameDrag {
 const ROLL_ANIM_MS: f32 = 180.0;
 /// Delay between two animation frames.
 const ROLL_FRAME_MS: u32 = 15;
+/// While a fence is temporarily open, how often the pointer is checked.
+const COLLAPSE_POLL_MS: u32 = 40;
 
 /// Height animation between the rolled-up and the open rectangle. The top
 /// edge stays in place, the bottom edge moves.
@@ -100,6 +102,9 @@ pub struct FenceUi {
     /// animation when a fence appears).
     shown_open: Option<bool>,
     anim: Option<RollAnim>,
+    /// When the pointer was first seen outside the temporarily opened
+    /// fence (delay before rolling up again).
+    left_at: Option<std::time::Instant>,
     pub hovered_frame: bool,
     pub hovered_body: bool,
     pub mouse: Option<Point>,
@@ -121,9 +126,21 @@ impl FenceUi {
 
     pub fn placed(&self) -> Placed {
         let m = FrameMetrics::for_dpi(self.dpi);
-        // Icons stay parked while the height animates; they are placed
-        // once the fence is fully open.
-        let open = (!self.rolled || self.temp_open) && self.anim.is_none();
+        if self.anim.is_some() {
+            // While the height animates, icons keep their final grid (full
+            // body) and only those inside the visible part are shown, so
+            // they appear and disappear with the moving bottom edge.
+            return Placed {
+                id: self.id,
+                rect: self.rect,
+                body: m.body(&self.full_rect),
+                rolled: false,
+                hidden: self.hidden,
+                portal: self.portal,
+                clip_bottom: Some(m.body(&self.rect).bottom),
+            };
+        }
+        let open = !self.rolled || self.temp_open;
         Placed {
             id: self.id,
             rect: self.rect,
@@ -135,6 +152,7 @@ impl FenceUi {
             rolled: !open,
             hidden: self.hidden,
             portal: self.portal,
+            clip_bottom: None,
         }
     }
 
@@ -282,6 +300,7 @@ impl App {
             temp_open: false,
             shown_open: None,
             anim: None,
+            left_at: None,
             hovered_frame: false,
             hovered_body: false,
             mouse: None,
@@ -389,9 +408,10 @@ impl App {
         }
         if running {
             self.set_timer(Timer::RollAnim, ROLL_FRAME_MS);
+            // Icons follow the moving bottom edge.
+            self.move_icons();
         }
         if finished {
-            // Icons go back into the fences that are now open.
             self.update_hit_data();
             self.relayout();
         }
@@ -665,9 +685,11 @@ impl App {
                 f.hovered_frame = false;
                 f.mouse = None;
                 if self.fences[i].temp_open {
-                    self.set_timer(Timer::Collapse, 500);
+                    self.check_collapse();
                 }
-                self.render_frame(i);
+                if i < self.fences.len() {
+                    self.render_frame(i);
+                }
             }
             msg::WM_LBUTTONDOWN => {
                 let Some(layout) = self.frame_layout(i) else {
@@ -890,31 +912,68 @@ impl App {
 
     pub fn set_temp_open(&mut self, i: usize, open: bool) {
         self.fences[i].temp_open = open;
+        self.fences[i].left_at = None;
         self.update_fence_geometry(i);
         self.render_backdrop(i);
         self.render_frame(i);
         self.relayout();
         if open {
-            self.set_timer(Timer::Collapse, 800);
+            self.set_timer(Timer::Collapse, COLLAPSE_POLL_MS);
         }
     }
 
-    /// Closes temporarily opened fences once the mouse left them; stays
-    /// open during a drag or while a menu is shown.
+    /// True when the pointer is over the fence and not over a window
+    /// covering the desktop at that place.
+    fn pointer_over(&self, i: usize, p: Point) -> bool {
+        let f = &self.fences[i];
+        if !f.rect.contains(p) {
+            return false;
+        }
+        let under = window::window_from_point(p);
+        // Icon tooltips of Explorer float over the desktop.
+        if under.class_name() == "tooltips_class32" {
+            return true;
+        }
+        let root = under.root();
+        [
+            f.frame.hwnd().root(),
+            f.backdrop.hwnd().root(),
+            f.layer.listview.root(),
+        ]
+        .contains(&root)
+    }
+
+    /// Rolls temporarily opened fences up again once the pointer left them
+    /// for the configured delay. They stay open during a drag or while a
+    /// menu is shown. Polls while any fence is temporarily open, so a
+    /// missed mouse-leave notification cannot keep one open.
     pub fn check_collapse(&mut self) {
         let p = bento_win::input::cursor_pos();
-        let busy = self.popup.is_some();
-        let left_down = bento_win::input::left_button_down();
+        let busy =
+            self.popup.is_some() || self.edit.is_some() || bento_win::input::left_button_down();
+        let delay =
+            std::time::Duration::from_millis(u64::from(self.config.rollup.collapse_delay_ms));
+        let now = std::time::Instant::now();
+        let mut pending = false;
         for i in 0..self.fences.len() {
-            let f = &self.fences[i];
-            if !f.temp_open {
+            if !self.fences[i].temp_open {
                 continue;
             }
-            if f.rect.inflate(8).contains(p) || busy || left_down || f.drag.is_some() {
-                self.set_timer(Timer::Collapse, 600);
+            if busy || self.fences[i].drag.is_some() || self.pointer_over(i, p) {
+                self.fences[i].left_at = None;
+                pending = true;
                 continue;
             }
+            let since = *self.fences[i].left_at.get_or_insert(now);
+            if now.saturating_duration_since(since) < delay {
+                pending = true;
+                continue;
+            }
+            tracing::debug!("fence {:?}: rolls up again", self.fences[i].id);
             self.set_temp_open(i, false);
+        }
+        if pending {
+            self.set_timer(Timer::Collapse, COLLAPSE_POLL_MS);
         }
     }
 
@@ -928,7 +987,7 @@ impl App {
             if self.fences[i].hovered_body != h {
                 self.fences[i].hovered_body = h;
                 if !h && self.fences[i].temp_open {
-                    self.set_timer(Timer::Collapse, 500);
+                    self.set_timer(Timer::Collapse, 0);
                 }
                 self.render_frame(i);
             }

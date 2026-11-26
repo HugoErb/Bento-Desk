@@ -94,6 +94,9 @@ pub struct RollUp {
     /// Smooth height animation when rolling up or unrolling, instead of an
     /// instant change.
     pub animate: bool,
+    /// Delay before a temporarily opened fence rolls up again once the
+    /// mouse left it, milliseconds (0 = at once).
+    pub collapse_delay_ms: u32,
 }
 
 impl Default for RollUp {
@@ -103,6 +106,7 @@ impl Default for RollUp {
             open_on: OpenTrigger::Click,
             auto_rollup_docked: false,
             animate: true,
+            collapse_delay_ms: 0,
         }
     }
 }

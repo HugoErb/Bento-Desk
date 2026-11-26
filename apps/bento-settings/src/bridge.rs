@@ -223,6 +223,7 @@ fn push_config(ui: &MainWindow, c: &AppConfig) {
     });
     g.set_rollup_auto_docked(c.rollup.auto_rollup_docked);
     g.set_rollup_animate(c.rollup.animate);
+    g.set_rollup_collapse_delay(c.rollup.collapse_delay_ms.min(5000) as i32);
     g.set_qh_keep_free_icons(c.quick_hide.keep_free_icons);
     g.set_qh_idle_seconds(c.quick_hide.idle_seconds.min(3600) as i32);
     g.set_pages_enabled(c.pages.enabled);
@@ -280,6 +281,7 @@ fn pull_config(ui: &MainWindow, c: &mut AppConfig) {
     };
     c.rollup.auto_rollup_docked = g.get_rollup_auto_docked();
     c.rollup.animate = g.get_rollup_animate();
+    c.rollup.collapse_delay_ms = g.get_rollup_collapse_delay().clamp(0, 5000) as u32;
     c.quick_hide.keep_free_icons = g.get_qh_keep_free_icons();
     c.quick_hide.idle_seconds = g.get_qh_idle_seconds().clamp(0, 3600) as u32;
     c.pages.enabled = g.get_pages_enabled();

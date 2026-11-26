@@ -696,6 +696,21 @@ export component BehaviorPage inherits ScrollPage {
     }
 
     Card {
+        title: @tr("Delay before rolling up again");
+        description: @tr("Milliseconds after the mouse leaves an opened Bento, 0 = at once.");
+        SpinBox {
+            width: 140px;
+            minimum: 0;
+            maximum: 5000;
+            step-size: 100;
+            value <=> Cfg.rollup-collapse-delay;
+            edited => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
         title: @tr("Roll up new docked Bentos");
         description: @tr("Default value for Bentos docked to a screen edge.");
         Switch {
