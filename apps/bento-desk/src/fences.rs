@@ -706,11 +706,16 @@ impl App {
         }
         if let Some(r) = new_rect {
             let resized = r.size() != f.rect.size();
+            let moved = r != f.rect;
             f.rect = r;
             f.apply_rect();
             if resized {
                 self.render_backdrop(i);
                 self.render_frame(i);
+            }
+            if moved {
+                // Icons follow the fence during the drag.
+                self.move_icons();
             }
         }
     }

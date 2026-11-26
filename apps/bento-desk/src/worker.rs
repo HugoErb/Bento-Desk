@@ -201,7 +201,23 @@ fn run(rx: Receiver<Cmd>, tx: Sender<Reply>, notify: Hwnd, msg: u32) {
             notify.post(msg, 0, 0);
         }
     };
-    while let Ok(cmd) = rx.recv() {
+    let mut next: Option<Cmd> = None;
+    loop {
+        let cmd = match next.take() {
+            Some(c) => c,
+            None => match rx.recv() {
+                Ok(c) => c,
+                Err(_) => break,
+            },
+        };
+        let cmd = match cmd {
+            Cmd::Move(moves) => {
+                let (moves, after) = coalesce_moves(moves, &rx);
+                next = after;
+                Cmd::Move(moves)
+            }
+            c => c,
+        };
         match cmd {
             Cmd::Connect(listview) => {
                 st.view = None;
@@ -262,6 +278,30 @@ fn run(rx: Receiver<Cmd>, tx: Sender<Reply>, notify: Hwnd, msg: u32) {
                     .collect();
                 reply(Reply::Icons(icons));
             }
+        }
+    }
+}
+
+/// Merges the `Move` commands already queued after `first` (a fence drag
+/// sends one per mouse move), so Explorer only gets the latest positions.
+/// Stops at the first other command, returned to keep the command order.
+fn coalesce_moves(
+    first: Vec<(String, Point)>,
+    rx: &Receiver<Cmd>,
+) -> (Vec<(String, Point)>, Option<Cmd>) {
+    let mut moves = first;
+    loop {
+        match rx.try_recv() {
+            Ok(Cmd::Move(more)) => {
+                for (k, p) in more {
+                    match moves.iter_mut().find(|(mk, _)| *mk == k) {
+                        Some(m) => m.1 = p,
+                        None => moves.push((k, p)),
+                    }
+                }
+            }
+            Ok(other) => return (moves, Some(other)),
+            Err(_) => return (moves, None),
         }
     }
 }
@@ -354,6 +394,36 @@ fn list_folder(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn queued_moves_are_merged_until_another_command() {
+        let (tx, rx) = mpsc::channel::<Cmd>();
+        tx.send(Cmd::Move(vec![("a".into(), Point::new(5, 5))]))
+            .unwrap();
+        tx.send(Cmd::Move(vec![
+            ("a".into(), Point::new(9, 9)),
+            ("c".into(), Point::new(3, 3)),
+        ]))
+        .unwrap();
+        tx.send(Cmd::Snapshot).unwrap();
+        tx.send(Cmd::Move(vec![("a".into(), Point::new(0, 0))]))
+            .unwrap();
+        let first = vec![
+            ("a".into(), Point::new(1, 1)),
+            ("b".into(), Point::new(2, 2)),
+        ];
+        let (moves, next) = coalesce_moves(first, &rx);
+        assert_eq!(
+            moves,
+            vec![
+                ("a".to_owned(), Point::new(9, 9)),
+                ("b".to_owned(), Point::new(2, 2)),
+                ("c".to_owned(), Point::new(3, 3)),
+            ]
+        );
+        assert!(matches!(next, Some(Cmd::Snapshot)));
+        assert!(matches!(rx.try_recv(), Ok(Cmd::Move(_))));
+    }
 
     #[test]
     fn url_file_target() {

@@ -595,14 +595,26 @@ impl App {
         self.fences.iter().map(FenceUi::placed).collect()
     }
 
-    /// Recomputes every icon position and asks Explorer to move icons.
+    /// Recomputes every icon position, asks Explorer to move icons and
+    /// redraws the frames.
     pub fn relayout(&mut self) {
+        if self.move_icons() {
+            for i in 0..self.fences.len() {
+                self.render_frame(i);
+            }
+        }
+    }
+
+    /// Recomputes every icon position and asks Explorer to move icons,
+    /// without redrawing the frames (used while a fence is dragged).
+    /// Returns false when nothing was laid out.
+    pub fn move_icons(&mut self) -> bool {
         if !self.connected || self.quick_hidden_global {
             self.update_hit_data();
-            return;
+            return false;
         }
         let Some(layout) = self.state.layout(&self.layout_key) else {
-            return;
+            return false;
         };
         let placed = self.placed();
         let inp = LayoutInput {
@@ -632,9 +644,7 @@ impl App {
             self.worker.send(Cmd::Move(moves));
         }
         self.update_hit_data();
-        for i in 0..self.fences.len() {
-            self.render_frame(i);
-        }
+        true
     }
 
     /// Geometry given to the mouse hook.
