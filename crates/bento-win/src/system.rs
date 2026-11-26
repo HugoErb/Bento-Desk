@@ -355,3 +355,33 @@ pub fn read_copydata(lparam: isize) -> Option<(usize, Vec<u8>)> {
         Some((cds.dwData, bytes.to_vec()))
     }
 }
+
+/// Local date and time of a Unix timestamp, as (year, month, day, hour,
+/// minute). `None` if the conversion fails.
+pub fn local_time(unix_secs: u64) -> Option<(u16, u16, u16, u16, u16)> {
+    use windows::Win32::Foundation::{FILETIME, SYSTEMTIME};
+    use windows::Win32::System::Time::{FileTimeToSystemTime, SystemTimeToTzSpecificLocalTime};
+    // FILETIME counts 100 ns intervals since 1601-01-01.
+    let ticks = unix_secs
+        .checked_add(11_644_473_600)?
+        .checked_mul(10_000_000)?;
+    let ft = FILETIME {
+        dwLowDateTime: ticks as u32,
+        dwHighDateTime: (ticks >> 32) as u32,
+    };
+    let mut utc = SYSTEMTIME::default();
+    let mut local = SYSTEMTIME::default();
+    // SAFETY: valid in and out structures; NULL time zone = current one.
+    // https://learn.microsoft.com/windows/win32/api/timezoneapi/nf-timezoneapi-systemtimetotzspecificlocaltime
+    unsafe {
+        FileTimeToSystemTime(&ft, &mut utc).ok()?;
+        SystemTimeToTzSpecificLocalTime(None, &utc, &mut local).ok()?;
+    }
+    Some((
+        local.wYear,
+        local.wMonth,
+        local.wDay,
+        local.wHour,
+        local.wMinute,
+    ))
+}

@@ -1,0 +1,217 @@
+// Data shared between the Rust side and the pages. Every property here is
+// filled by `src/bridge.rs` and read back when a page reports a change.
+
+import { Palette } from "std-widgets.slint";
+
+/// Colors of the window, close to the Windows 11 Settings app.
+export global Theme {
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+    out property <color> page: dark ? #202020 : #f3f3f3;
+    out property <color> card: dark ? #2b2b2b : #fbfbfb;
+    out property <color> card-hover: dark ? #323232 : #f6f6f6;
+    out property <color> stroke: dark ? #1c1c1c : #e5e5e5;
+    out property <color> divider: dark ? #ffffff14 : #0000000f;
+    out property <color> text: dark ? #ffffff : #1b1b1b;
+    out property <color> text2: dark ? #cfcfcf : #5f5f5f;
+    out property <color> subtle: dark ? #ffffff0f : #00000009;
+    out property <color> subtle2: dark ? #ffffff17 : #00000012;
+    out property <brush> accent: Palette.accent-background;
+    out property <color> ok: dark ? #6ccb5f : #0f7b0f;
+    out property <color> warn: dark ? #fce100 : #9d5d00;
+    out property <string> icon-font: "Segoe MDL2 Assets";
+}
+
+/// Navigation and transient messages.
+export global App {
+    in-out property <int> page: 0;
+    in property <string> version;
+    in property <string> toast;
+    in property <bool> portable;
+    in property <string> data-dir;
+    callback open-url(string);
+}
+
+/// Global preferences (config.json), flattened.
+export global Cfg {
+    // General
+    in-out property <int> language;
+    in-out property <bool> start-with-windows;
+    in-out property <bool> show-in-taskbar;
+    in-out property <bool> pause-on-fullscreen;
+    in-out property <bool> desktop-gestures;
+    in-out property <string> exclusions;
+    in-out property <int> log-level;
+    // Appearance
+    in-out property <bool> use-accent-color;
+    // Layout and magnetism
+    in-out property <bool> snap-to-edges;
+    in-out property <bool> snap-to-fences;
+    in-out property <float> snap-distance;
+    in-out property <float> snap-gap;
+    in-out property <float> icon-spacing;
+    // Roll-up
+    in-out property <bool> rollup-double-click;
+    in-out property <int> rollup-open-on;
+    in-out property <bool> rollup-auto-docked;
+    // Quick-hide
+    in-out property <bool> qh-double-click;
+    in-out property <bool> qh-keep-free-icons;
+    in-out property <int> qh-idle-seconds;
+    // Pages
+    in-out property <bool> pages-enabled;
+    in-out property <bool> pages-edge-switch;
+    in-out property <bool> pages-indicator;
+    // Portals
+    in-out property <int> portal-view;
+    in-out property <bool> portal-hide-title-icon;
+    in-out property <bool> portal-show-hidden;
+    // Peek
+    in-out property <float> peek-dim;
+    // Layouts
+    in-out property <bool> layouts-auto-restore;
+    // Sorting
+    in-out property <bool> rules-auto-apply;
+    // Shortcuts, as text ("Ctrl+Alt+D"), empty = none.
+    in-out property <string> hk-peek;
+    in-out property <string> hk-quick-hide;
+    in-out property <string> hk-next-page;
+    in-out property <string> hk-prev-page;
+
+    /// Any value above changed.
+    callback changed();
+    /// Language changed: applied at once.
+    callback language-changed();
+    /// Builds the text of a shortcut from a key press; empty if the key
+    /// alone is not usable.
+    pure callback capture(string, bool, bool, bool, bool) -> string;
+}
+
+export struct FenceRow {
+    id: int,
+    title: string,
+    detail: string,
+    auto-rollup: bool,
+    exempt: bool,
+    custom-style: bool,
+    portal: bool,
+}
+
+/// Fences of the current layout (state.json).
+export global Desk {
+    in property <bool> daemon-running;
+    in property <[FenceRow]> fences;
+    in property <[string]> fence-titles;
+    in property <int> page-count;
+    in property <string> layout-name;
+    in-out property <int> selected: -1;
+    in-out property <string> edit-title;
+    in-out property <bool> edit-auto-rollup;
+    in-out property <bool> edit-exempt;
+    callback select(int);
+    callback rename();
+    callback options-changed();
+    callback customize();
+    callback refresh();
+}
+
+/// Style editor of the Appearance page.
+export global Style {
+    in property <[string]> targets;
+    in-out property <int> target;
+    /// For a fence target: follow the default style.
+    in-out property <bool> use-default;
+    in-out property <float> hue;
+    in-out property <float> saturation;
+    in-out property <float> intensity;
+    in-out property <float> transparency;
+    in-out property <int> effect;
+    in-out property <bool> chameleon;
+    in-out property <int> title-mode;
+    in-out property <string> title-font;
+    in-out property <float> title-size;
+    in-out property <bool> title-bold;
+    in-out property <int> title-color;
+    in-out property <float> corner-radius;
+    in-out property <bool> border;
+    in property <color> preview-fill;
+    in property <color> preview-text;
+    in property <string> preview-title;
+    callback changed();
+    callback target-changed();
+    callback preset(int);
+    callback apply-to-all();
+    callback reset();
+}
+
+export struct RuleRow {
+    name: string,
+    enabled: bool,
+    target: string,
+    summary: string,
+}
+
+export struct CondRow {
+    field: int,
+    op: int,
+    value: string,
+    kind: int,
+    date-field: int,
+    days: int,
+}
+
+/// Rule list and editor.
+export global Rules {
+    in property <[RuleRow]> rules;
+    in-out property <int> selected: -1;
+    in-out property <string> name;
+    in-out property <bool> enabled;
+    in-out property <int> match-mode;
+    in-out property <int> target;
+    in property <[CondRow]> conditions;
+    in property <[string]> test-results;
+    in property <string> test-status;
+    callback select(int);
+    callback add();
+    callback remove();
+    callback move(int);
+    callback set-enabled(int, bool);
+    callback edited();
+    callback cond-add();
+    callback cond-remove(int);
+    callback cond-set(int, string, int, string);
+    callback test();
+    callback sort-now();
+}
+
+export struct SnapRow {
+    name: string,
+    date: string,
+    fences: string,
+}
+
+/// Snapshots and display tools.
+export global Snaps {
+    in property <[SnapRow]> items;
+    in-out property <string> new-name;
+    in property <[string]> monitors;
+    in-out property <int> swap-a;
+    in-out property <int> swap-b: 1;
+    callback save();
+    callback restore(int);
+    callback delete(int);
+    callback swap();
+    callback refresh();
+}
+
+/// Actions that talk to the resident app or to the file system.
+export global Sys {
+    callback export();
+    callback import();
+    callback debug-package();
+    callback recover-icons();
+    callback restore-explorer();
+    callback open-logs();
+    callback open-data();
+    callback quit-daemon();
+    callback start-daemon();
+}

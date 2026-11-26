@@ -1,0 +1,1482 @@
+// Pages of the settings window. Each page reads and writes the globals and
+// reports changes through their callbacks.
+
+import { Button, Switch, ComboBox, Slider, SpinBox, LineEdit, TextEdit, AboutSlint } from "std-widgets.slint";
+import { Theme, App, Cfg, Desk, Style, Rules, Snaps, Sys } from "globals.slint";
+import { Glyph, PageHeader, SectionLabel, Card, Panel, HotkeyField, FencePreview, ScrollPage } from "widgets.slint";
+
+/// Value shown next to a slider.
+component SliderValue inherits Text {
+    width: 48px;
+    color: Theme.text2;
+    horizontal-alignment: right;
+    vertical-alignment: center;
+}
+
+component StatusDot inherits Rectangle {
+    in property <bool> on;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background: on ? Theme.ok : Theme.warn;
+}
+
+export component HomePage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Home");
+        subtitle: @tr("Organize your desktop icons into fences, without touching any other process.");
+    }
+
+    Panel {
+        HorizontalLayout {
+            spacing: 20px;
+            Image {
+                source: @image-url("../../../assets/bento.png");
+                width: 64px;
+                height: 64px;
+            }
+            VerticalLayout {
+                alignment: center;
+                spacing: 6px;
+                Text {
+                    text: "Bento Desk";
+                    font-size: 22px;
+                    font-weight: 600;
+                    color: Theme.text;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    StatusDot {
+                        on: Desk.daemon-running;
+                        y: 4px;
+                    }
+                    Text {
+                        text: Desk.daemon-running ? @tr("Running") : @tr("Not running");
+                        color: Theme.text2;
+                    }
+                    Text {
+                        text: "·";
+                        color: Theme.text2;
+                    }
+                    Text {
+                        text: @tr("{} fences on {} pages", Desk.fences.length, Desk.page-count);
+                        color: Theme.text2;
+                    }
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+            VerticalLayout {
+                alignment: center;
+                if !Desk.daemon-running: Button {
+                    text: @tr("Start Bento Desk");
+                    primary: true;
+                    clicked => {
+                        Sys.start-daemon();
+                    }
+                }
+            }
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Get started");
+    }
+
+    Card {
+        icon: "\u{E8B0}";
+        title: @tr("Create a fence");
+        description: @tr("Hold the right mouse button on an empty desktop area and drag a rectangle, or use the tray icon menu.");
+    }
+
+    Card {
+        icon: "\u{E7C2}";
+        title: @tr("Move icons");
+        description: @tr("Drag desktop icons into a fence. Icons stay real desktop icons: open, rename and right-click work as usual.");
+    }
+
+    Card {
+        icon: "\u{E70E}";
+        title: @tr("Roll up a fence");
+        description: @tr("Double-click the title bar to keep only the title visible.");
+    }
+
+    Card {
+        icon: "\u{E7B3}";
+        title: @tr("Peek");
+        description: @tr("Press the Peek shortcut to show your fences above all windows.");
+        Text {
+            text: Cfg.hk-peek == "" ? @tr("None") : Cfg.hk-peek;
+            color: Theme.text2;
+            vertical-alignment: center;
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Shortcuts");
+    }
+
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: start;
+        Button {
+            text: @tr("Manage fences");
+            clicked => {
+                App.page = 1;
+            }
+        }
+        Button {
+            text: @tr("Appearance");
+            clicked => {
+                App.page = 2;
+            }
+        }
+        Button {
+            text: @tr("Sorting rules");
+            clicked => {
+                App.page = 6;
+            }
+        }
+    }
+}
+
+export component FencesPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Fences");
+        subtitle: @tr("Fences of the current display layout. Click one to edit it.");
+    }
+
+    if Desk.fences.length == 0: Panel {
+        Text {
+            text: @tr("No fence yet. Hold the right mouse button on the desktop and drag to create one.");
+            color: Theme.text2;
+            wrap: word-wrap;
+        }
+    }
+
+    for f[i] in Desk.fences: Card {
+        icon: f.portal ? "\u{E838}" : "\u{ECA5}";
+        title: f.title == "" ? @tr("(untitled)") : f.title;
+        description: f.detail;
+        clickable: true;
+        selected: Desk.selected == i;
+        clicked => {
+            Desk.select(i);
+        }
+        if f.custom-style: Text {
+            text: @tr("Custom style");
+            color: Theme.text2;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+        Glyph {
+            text: Desk.selected == i ? "\u{E70E}" : "\u{E70D}";
+            font-size: 10px;
+        }
+    }
+
+    if Desk.selected >= 0: VerticalLayout {
+        spacing: 4px;
+        SectionLabel {
+            text: @tr("Selected fence");
+        }
+
+        Card {
+            icon: "\u{E8AC}";
+            title: @tr("Title");
+            LineEdit {
+                width: 260px;
+                text <=> Desk.edit-title;
+                accepted => {
+                    Desk.rename();
+                }
+            }
+            Button {
+                text: @tr("Rename");
+                clicked => {
+                    Desk.rename();
+                }
+            }
+        }
+
+        Card {
+            icon: "\u{E70E}";
+            title: @tr("Roll up when docked");
+            description: @tr("Roll up automatically when the fence touches a screen edge.");
+            Switch {
+                checked <=> Desk.edit-auto-rollup;
+                toggled => {
+                    Desk.options-changed();
+                }
+            }
+        }
+
+        Card {
+            icon: "\u{E890}";
+            title: @tr("Stay visible during quick-hide");
+            Switch {
+                checked <=> Desk.edit-exempt;
+                toggled => {
+                    Desk.options-changed();
+                }
+            }
+        }
+
+        Card {
+            icon: "\u{E790}";
+            title: @tr("Appearance of this fence");
+            description: @tr("Color, transparency, title and corners.");
+            Button {
+                text: @tr("Customize");
+                clicked => {
+                    Desk.customize();
+                }
+            }
+        }
+    }
+}
+
+export component AppearancePage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Appearance");
+        subtitle: @tr("Changes are applied to the desktop at once.");
+    }
+
+    Card {
+        icon: "\u{E8A9}";
+        title: @tr("Apply to");
+        description: @tr("The default style is used by every fence without its own style.");
+        ComboBox {
+            width: 260px;
+            model: Style.targets;
+            current-index <=> Style.target;
+            selected => {
+                Style.target-changed();
+            }
+        }
+    }
+
+    if Style.target > 0: Card {
+        icon: "\u{E777}";
+        title: @tr("Use the default style");
+        Switch {
+            checked <=> Style.use-default;
+            toggled => {
+                Style.changed();
+            }
+        }
+    }
+
+    FencePreview {
+        fill: Style.preview-fill;
+        text-color: Style.preview-text;
+        title: Style.preview-title;
+        title-mode: Style.title-mode;
+        title-size: Style.title-size * 1px;
+        bold: Style.title-bold;
+        radius: Style.corner-radius * 1px;
+        border: Style.border;
+        blur: Style.effect == 1;
+    }
+
+    if Style.target == 0 || !Style.use-default: VerticalLayout {
+        spacing: 4px;
+        SectionLabel {
+            text: @tr("Color");
+        }
+
+        Panel {
+            Text {
+                text: @tr("Presets");
+                color: Theme.text2;
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                for c[i] in [#2b2f36, #1f3a5f, #0f4c4c, #2d4a22, #5a4214, #5c1f24, #3d2a5c, #e8e8e8]: Rectangle {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 17px;
+                    background: c;
+                    border-width: pta.has-hover ? 2px : 1px;
+                    border-color: pta.has-hover ? Theme.accent : Theme.divider;
+                    pta := TouchArea {
+                        mouse-cursor: MouseCursor.pointer;
+                        clicked => {
+                            Style.preset(i);
+                        }
+                    }
+                }
+            }
+        }
+
+        Card {
+            title: @tr("Hue");
+            Slider {
+                width: 240px;
+                minimum: 0;
+                maximum: 359;
+                value <=> Style.hue;
+                changed => {
+                    Style.changed();
+                }
+            }
+            SliderValue {
+                text: round(Style.hue) + "°";
+            }
+        }
+
+        Card {
+            title: @tr("Saturation");
+            Slider {
+                width: 240px;
+                minimum: 0;
+                maximum: 100;
+                value <=> Style.saturation;
+                changed => {
+                    Style.changed();
+                }
+            }
+            SliderValue {
+                text: round(Style.saturation) + " %";
+            }
+        }
+
+        Card {
+            title: @tr("Intensity");
+            Slider {
+                width: 240px;
+                minimum: 0;
+                maximum: 100;
+                value <=> Style.intensity;
+                changed => {
+                    Style.changed();
+                }
+            }
+            SliderValue {
+                text: round(Style.intensity) + " %";
+            }
+        }
+
+        Card {
+            title: @tr("Transparency");
+            Slider {
+                width: 240px;
+                minimum: 0;
+                maximum: 100;
+                value <=> Style.transparency;
+                changed => {
+                    Style.changed();
+                }
+            }
+            SliderValue {
+                text: round(Style.transparency) + " %";
+            }
+        }
+
+        Card {
+            icon: "\u{E727}";
+            title: @tr("Background effect");
+            description: @tr("Blur shows the wallpaper under the fence, softened.");
+            ComboBox {
+                width: 200px;
+                model: [@tr("Solid color"), @tr("Blur")];
+                current-index <=> Style.effect;
+                selected => {
+                    Style.changed();
+                }
+            }
+        }
+
+        Card {
+            icon: "\u{E790}";
+            title: @tr("Chameleon");
+            description: @tr("Adapt the color to the wallpaper under the fence.");
+            Switch {
+                checked <=> Style.chameleon;
+                toggled => {
+                    Style.changed();
+                }
+            }
+        }
+
+        SectionLabel {
+            text: @tr("Title");
+        }
+
+        Card {
+            icon: "\u{E8C1}";
+            title: @tr("Show the title");
+            ComboBox {
+                width: 200px;
+                model: [@tr("Never"), @tr("On hover"), @tr("Always")];
+                current-index <=> Style.title-mode;
+                selected => {
+                    Style.changed();
+                }
+            }
+        }
+
+        Card {
+            title: @tr("Font");
+            LineEdit {
+                width: 240px;
+                text <=> Style.title-font;
+                edited => {
+                    Style.changed();
+                }
+            }
+        }
+
+        Card {
+            title: @tr("Size");
+            Slider {
+                width: 240px;
+                minimum: 9;
+                maximum: 24;
+                value <=> Style.title-size;
+                changed => {
+                    Style.changed();
+                }
+            }
+            SliderValue {
+                text: round(Style.title-size) + " pt";
+            }
+        }
+
+        Card {
+            title: @tr("Bold");
+            Switch {
+                checked <=> Style.title-bold;
+                toggled => {
+                    Style.changed();
+                }
+            }
+        }
+
+        Card {
+            title: @tr("Title color");
+            ComboBox {
+                width: 200px;
+                model: [@tr("Automatic"), @tr("White"), @tr("Black")];
+                current-index <=> Style.title-color;
+                selected => {
+                    Style.changed();
+                }
+            }
+        }
+
+        SectionLabel {
+            text: @tr("Shape");
+        }
+
+        Card {
+            title: @tr("Corner radius");
+            Slider {
+                width: 240px;
+                minimum: 0;
+                maximum: 20;
+                value <=> Style.corner-radius;
+                changed => {
+                    Style.changed();
+                }
+            }
+            SliderValue {
+                text: round(Style.corner-radius) + " px";
+            }
+        }
+
+        Card {
+            title: @tr("Border");
+            Switch {
+                checked <=> Style.border;
+                toggled => {
+                    Style.changed();
+                }
+            }
+        }
+    }
+
+    HorizontalLayout {
+        padding-top: 16px;
+        spacing: 8px;
+        alignment: start;
+        Button {
+            text: @tr("Apply this style to every fence");
+            clicked => {
+                Style.apply-to-all();
+            }
+        }
+        Button {
+            text: @tr("Reset");
+            clicked => {
+                Style.reset();
+            }
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Windows");
+    }
+
+    Card {
+        icon: "\u{E771}";
+        title: @tr("Use the accent color");
+        description: @tr("Highlights follow the Windows accent color.");
+        Switch {
+            checked <=> Cfg.use-accent-color;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+}
+
+export component LayoutPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Layout and magnetism");
+        subtitle: @tr("How fences snap while they are moved or resized.");
+    }
+
+    Card {
+        icon: "\u{E8A9}";
+        title: @tr("Snap to screen edges");
+        Switch {
+            checked <=> Cfg.snap-to-edges;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{ECA5}";
+        title: @tr("Snap to other fences");
+        Switch {
+            checked <=> Cfg.snap-to-fences;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        title: @tr("Snap distance");
+        Slider {
+            width: 240px;
+            minimum: 4;
+            maximum: 40;
+            value <=> Cfg.snap-distance;
+            changed => {
+                Cfg.changed();
+            }
+        }
+        SliderValue {
+            text: round(Cfg.snap-distance) + " px";
+        }
+    }
+
+    Card {
+        title: @tr("Gap between snapped fences");
+        Slider {
+            width: 240px;
+            minimum: 0;
+            maximum: 32;
+            value <=> Cfg.snap-gap;
+            changed => {
+                Cfg.changed();
+            }
+        }
+        SliderValue {
+            text: round(Cfg.snap-gap) + " px";
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Icons");
+    }
+
+    Card {
+        icon: "\u{E80A}";
+        title: @tr("Icon spacing in fences");
+        description: @tr("Percentage of the desktop icon spacing.");
+        Slider {
+            width: 240px;
+            minimum: 60;
+            maximum: 200;
+            value <=> Cfg.icon-spacing;
+            changed => {
+                Cfg.changed();
+            }
+        }
+        SliderValue {
+            text: round(Cfg.icon-spacing) + " %";
+        }
+    }
+}
+
+export component BehaviorPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Roll-up and quick-hide");
+    }
+
+    SectionLabel {
+        text: @tr("Roll-up");
+    }
+
+    Card {
+        icon: "\u{E70E}";
+        title: @tr("Double-click the title to roll up");
+        Switch {
+            checked <=> Cfg.rollup-double-click;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        title: @tr("Open a rolled-up fence");
+        description: @tr("The fence opens until the mouse leaves it.");
+        ComboBox {
+            width: 200px;
+            model: [@tr("On click"), @tr("On hover")];
+            current-index <=> Cfg.rollup-open-on;
+            selected => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        title: @tr("Roll up new docked fences");
+        description: @tr("Default value for fences docked to a screen edge.");
+        Switch {
+            checked <=> Cfg.rollup-auto-docked;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Quick-hide");
+    }
+
+    Card {
+        icon: "\u{E890}";
+        title: @tr("Double-click the desktop to hide icons");
+        description: @tr("Double-click again to show them.");
+        Switch {
+            checked <=> Cfg.qh-double-click;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        title: @tr("Keep icons outside fences visible");
+        Switch {
+            checked <=> Cfg.qh-keep-free-icons;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        title: @tr("Hide after inactivity");
+        description: @tr("Seconds without desktop activity, 0 = never.");
+        SpinBox {
+            width: 140px;
+            minimum: 0;
+            maximum: 3600;
+            step-size: 5;
+            value <=> Cfg.qh-idle-seconds;
+            edited => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E765}";
+        title: @tr("Quick-hide shortcut");
+        HotkeyField {
+            value <=> Cfg.hk-quick-hide;
+        }
+    }
+}
+
+export component PagesPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Desktop pages");
+        subtitle: @tr("Several sets of fences on the same desktop, one page at a time.");
+    }
+
+    Card {
+        icon: "\u{E7C3}";
+        title: @tr("Enable pages");
+        Switch {
+            checked <=> Cfg.pages-enabled;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        title: @tr("Switch page at screen edges");
+        description: @tr("Push the mouse against the left or right edge of the desktop.");
+        Switch {
+            checked <=> Cfg.pages-edge-switch;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        title: @tr("Show the page indicator");
+        Switch {
+            checked <=> Cfg.pages-indicator;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E765}";
+        title: @tr("Next page");
+        HotkeyField {
+            value <=> Cfg.hk-next-page;
+        }
+    }
+
+    Card {
+        icon: "\u{E765}";
+        title: @tr("Previous page");
+        HotkeyField {
+            value <=> Cfg.hk-prev-page;
+        }
+    }
+}
+
+component CondEditor inherits HorizontalLayout {
+    in property <int> index;
+    in property <int> field;
+    in property <int> op;
+    in property <string> value;
+    in property <int> kind;
+    in property <int> date-field;
+    in property <int> days;
+    spacing: 8px;
+    ComboBox {
+        width: 150px;
+        model: [@tr("Name"), @tr("Extension"), @tr("Type"), @tr("Shortcut target"), @tr("Date")];
+        current-index: root.field;
+        selected => {
+            Rules.cond-set(root.index, "field", self.current-index, "");
+        }
+    }
+    if root.field == 0 || root.field == 3: ComboBox {
+        width: 150px;
+        model: [@tr("contains"), @tr("starts with"), @tr("is")];
+        current-index: root.op;
+        selected => {
+            Rules.cond-set(root.index, "op", self.current-index, "");
+        }
+    }
+    if root.field == 0 || root.field == 1 || root.field == 3: LineEdit {
+        horizontal-stretch: 1;
+        min-width: 160px;
+        text: root.value;
+        placeholder-text: root.field == 1 ? @tr("pdf, docx, xlsx") : "";
+        edited(t) => {
+            Rules.cond-set(root.index, "value", 0, t);
+        }
+    }
+    if root.field == 2: ComboBox {
+        width: 180px;
+        model: [@tr("Shortcut"), @tr("Folder"), @tr("File"), @tr("Internet link"), @tr("System item")];
+        current-index: root.kind;
+        selected => {
+            Rules.cond-set(root.index, "kind", self.current-index, "");
+        }
+    }
+    if root.field == 4: ComboBox {
+        width: 150px;
+        model: [@tr("modified"), @tr("created")];
+        current-index: root.date-field;
+        selected => {
+            Rules.cond-set(root.index, "date", self.current-index, "");
+        }
+    }
+    if root.field == 4: ComboBox {
+        width: 170px;
+        model: [@tr("less than"), @tr("more than")];
+        current-index: root.op;
+        selected => {
+            Rules.cond-set(root.index, "op", self.current-index, "");
+        }
+    }
+    if root.field == 4: SpinBox {
+        width: 110px;
+        minimum: 0;
+        maximum: 3650;
+        value: root.days;
+        edited(v) => {
+            Rules.cond-set(root.index, "days", v, "");
+        }
+    }
+    if root.field == 4: Text {
+        text: @tr("days ago");
+        color: Theme.text2;
+        vertical-alignment: center;
+    }
+    if root.field == 2: Rectangle {
+        horizontal-stretch: 1;
+    }
+    if root.field == 4: Rectangle {
+        horizontal-stretch: 1;
+    }
+    Button {
+        text: @tr("Remove");
+        clicked => {
+            Rules.cond-remove(root.index);
+        }
+    }
+}
+
+export component RulesPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Sorting rules");
+        subtitle: @tr("New desktop icons go to the fence of the first matching rule. Rules are checked from top to bottom.");
+    }
+
+    Card {
+        icon: "\u{E8CB}";
+        title: @tr("Apply rules to new icons");
+        Switch {
+            checked <=> Cfg.rules-auto-apply;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E72C}";
+        title: @tr("Sort the whole desktop now");
+        description: @tr("Applies the rules to every icon of the desktop, including icons already in fences.");
+        Button {
+            text: @tr("Sort now");
+            clicked => {
+                Rules.sort-now();
+            }
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Rules");
+    }
+
+    if Rules.rules.length == 0: Panel {
+        Text {
+            text: @tr("No rule. Add one to file new icons automatically.");
+            color: Theme.text2;
+            wrap: word-wrap;
+        }
+    }
+
+    for r[i] in Rules.rules: Card {
+        icon: "\u{E71C}";
+        title: r.name == "" ? @tr("(unnamed rule)") : r.name;
+        description: r.summary + "  →  " + r.target;
+        clickable: true;
+        selected: Rules.selected == i;
+        clicked => {
+            Rules.select(i);
+        }
+        Switch {
+            checked: r.enabled;
+            toggled => {
+                Rules.set-enabled(i, self.checked);
+            }
+        }
+    }
+
+    HorizontalLayout {
+        padding-top: 8px;
+        spacing: 8px;
+        alignment: start;
+        Button {
+            text: @tr("Add a rule");
+            primary: true;
+            clicked => {
+                Rules.add();
+            }
+        }
+        Button {
+            text: @tr("Move up");
+            enabled: Rules.selected > 0;
+            clicked => {
+                Rules.move(-1);
+            }
+        }
+        Button {
+            text: @tr("Move down");
+            enabled: Rules.selected >= 0 && Rules.selected < Rules.rules.length - 1;
+            clicked => {
+                Rules.move(1);
+            }
+        }
+        Button {
+            text: @tr("Delete");
+            enabled: Rules.selected >= 0;
+            clicked => {
+                Rules.remove();
+            }
+        }
+    }
+
+    if Rules.selected >= 0: VerticalLayout {
+        spacing: 4px;
+        SectionLabel {
+            text: @tr("Edit the rule");
+        }
+
+        Card {
+            title: @tr("Name");
+            LineEdit {
+                width: 280px;
+                text <=> Rules.name;
+                edited => {
+                    Rules.edited();
+                }
+            }
+        }
+
+        Card {
+            title: @tr("Destination fence");
+            ComboBox {
+                width: 280px;
+                model: Desk.fence-titles;
+                current-index <=> Rules.target;
+                selected => {
+                    Rules.edited();
+                }
+            }
+        }
+
+        Card {
+            title: @tr("Conditions");
+            ComboBox {
+                width: 280px;
+                model: [@tr("All conditions must match"), @tr("Any condition can match")];
+                current-index <=> Rules.match-mode;
+                selected => {
+                    Rules.edited();
+                }
+            }
+        }
+
+        Panel {
+            for c[i] in Rules.conditions: CondEditor {
+                index: i;
+                field: c.field;
+                op: c.op;
+                value: c.value;
+                kind: c.kind;
+                date-field: c.date-field;
+                days: c.days;
+            }
+            HorizontalLayout {
+                alignment: start;
+                Button {
+                    text: @tr("Add a condition");
+                    clicked => {
+                        Rules.cond-add();
+                    }
+                }
+            }
+        }
+
+        Card {
+            icon: "\u{E9D9}";
+            title: @tr("Test the rule");
+            description: Rules.test-status;
+            Button {
+                text: @tr("Test");
+                clicked => {
+                    Rules.test();
+                }
+            }
+        }
+
+        if Rules.test-results.length > 0: Panel {
+            for t in Rules.test-results: Text {
+                text: t;
+                color: Theme.text;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+export component PortalsPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Folder portals");
+        subtitle: @tr("A portal shows the content of any folder inside a fence. Create one from the tray icon menu or from a fence menu.");
+    }
+
+    Card {
+        icon: "\u{E8FD}";
+        title: @tr("Default view");
+        ComboBox {
+            width: 200px;
+            model: [@tr("Icons"), @tr("List")];
+            current-index <=> Cfg.portal-view;
+            selected => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E8B7}";
+        title: @tr("Hide the folder icon in the title");
+        Switch {
+            checked <=> Cfg.portal-hide-title-icon;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E890}";
+        title: @tr("Show hidden files");
+        Switch {
+            checked <=> Cfg.portal-show-hidden;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+}
+
+export component PeekPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Peek");
+        subtitle: @tr("Shows your fences above all windows. Click an item to open it, Escape to close.");
+    }
+
+    Card {
+        icon: "\u{E765}";
+        title: @tr("Peek shortcut");
+        description: @tr("Win+Space switches the keyboard layout on Windows, so another combination is used by default.");
+        HotkeyField {
+            value <=> Cfg.hk-peek;
+        }
+    }
+
+    Card {
+        icon: "\u{E706}";
+        title: @tr("Dim the windows behind");
+        Slider {
+            width: 240px;
+            minimum: 0;
+            maximum: 80;
+            value <=> Cfg.peek-dim;
+            changed => {
+                Cfg.changed();
+            }
+        }
+        SliderValue {
+            text: round(Cfg.peek-dim) + " %";
+        }
+    }
+}
+
+export component SnapshotsPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Layouts and snapshots");
+        subtitle: @tr("Bento Desk keeps one layout per display configuration. A snapshot saves the current layout to restore it later.");
+    }
+
+    Card {
+        icon: "\u{E7F4}";
+        title: @tr("Restore the layout of each display configuration");
+        description: @tr("When monitors are plugged or unplugged, fences go back to where they were for that configuration.");
+        Switch {
+            checked <=> Cfg.layouts-auto-restore;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E7F4}";
+        title: @tr("Current layout");
+        description: Desk.layout-name;
+    }
+
+    SectionLabel {
+        text: @tr("Snapshots");
+    }
+
+    Card {
+        icon: "\u{E74E}";
+        title: @tr("Save a snapshot");
+        LineEdit {
+            width: 220px;
+            placeholder-text: @tr("Name (optional)");
+            text <=> Snaps.new-name;
+        }
+        Button {
+            text: @tr("Save");
+            primary: true;
+            clicked => {
+                Snaps.save();
+            }
+        }
+    }
+
+    if Snaps.items.length == 0: Panel {
+        Text {
+            text: @tr("No snapshot yet.");
+            color: Theme.text2;
+        }
+    }
+
+    for s[i] in Snaps.items: Card {
+        icon: "\u{E81C}";
+        title: s.name;
+        description: s.date + "  ·  " + s.fences;
+        Button {
+            text: @tr("Restore");
+            clicked => {
+                Snaps.restore(i);
+            }
+        }
+        Button {
+            text: @tr("Delete");
+            clicked => {
+                Snaps.delete(i);
+            }
+        }
+    }
+
+    if Snaps.monitors.length > 1: VerticalLayout {
+        spacing: 4px;
+        SectionLabel {
+            text: @tr("Monitors");
+        }
+
+        Card {
+            icon: "\u{E8AB}";
+            title: @tr("Swap the fences of two monitors");
+            ComboBox {
+                width: 200px;
+                model: Snaps.monitors;
+                current-index <=> Snaps.swap-a;
+            }
+            ComboBox {
+                width: 200px;
+                model: Snaps.monitors;
+                current-index <=> Snaps.swap-b;
+            }
+            Button {
+                text: @tr("Swap");
+                enabled: Snaps.swap-a != Snaps.swap-b;
+                clicked => {
+                    Snaps.swap();
+                }
+            }
+        }
+    }
+}
+
+export component GeneralPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("General");
+    }
+
+    Card {
+        icon: "\u{E774}";
+        title: @tr("Language");
+        ComboBox {
+            width: 200px;
+            model: [@tr("Windows language"), "Français", "English"];
+            current-index <=> Cfg.language;
+            selected => {
+                Cfg.changed();
+                Cfg.language-changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E7E8}";
+        title: @tr("Start with Windows");
+        description: App.portable ? @tr("Not available in portable mode.") : "";
+        Switch {
+            enabled: !App.portable;
+            checked <=> Cfg.start-with-windows;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E7C4}";
+        title: @tr("Show in the taskbar");
+        description: @tr("Adds a taskbar button, useful with some docks and taskbar tools.");
+        Switch {
+            checked <=> Cfg.show-in-taskbar;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E8B0}";
+        title: @tr("Desktop gestures");
+        description: @tr("Draw a fence with the right button, double-click to hide icons, scroll fences with the wheel. Uses a mouse hook only while the desktop is in the foreground.");
+        Switch {
+            checked <=> Cfg.desktop-gestures;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Game mode");
+    }
+
+    Card {
+        icon: "\u{E7FC}";
+        title: @tr("Pause during full-screen applications");
+        description: @tr("Stops the mouse hook and every background task while a game or a video is full screen.");
+        Switch {
+            checked <=> Cfg.pause-on-fullscreen;
+            toggled => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Panel {
+        Text {
+            text: @tr("Pause while these programs are in the foreground (one executable name per line):");
+            color: Theme.text;
+            wrap: word-wrap;
+        }
+        TextEdit {
+            height: 130px;
+            text <=> Cfg.exclusions;
+            edited => {
+                Cfg.changed();
+            }
+        }
+    }
+}
+
+export component BackupPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Backup");
+        subtitle: @tr("One file holds the settings, the fences of every layout and the snapshots.");
+    }
+
+    Card {
+        icon: "\u{EDE1}";
+        title: @tr("Export");
+        description: @tr("Save everything to a file.");
+        Button {
+            text: @tr("Export...");
+            clicked => {
+                Sys.export();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E8B5}";
+        title: @tr("Import");
+        description: @tr("Replace the current settings and fences with a file. The desktop is rebuilt at once.");
+        Button {
+            text: @tr("Import...");
+            clicked => {
+                Sys.import();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E8B7}";
+        title: @tr("Data folder");
+        description: App.data-dir;
+        Button {
+            text: @tr("Open");
+            clicked => {
+                Sys.open-data();
+            }
+        }
+    }
+}
+
+export component TroubleshootingPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("Troubleshooting");
+    }
+
+    Card {
+        icon: "\u{E7BA}";
+        title: @tr("Recover lost icons");
+        description: @tr("Brings every hidden or off-screen icon back to the visible desktop.");
+        Button {
+            text: @tr("Recover");
+            clicked => {
+                Sys.recover-icons();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E777}";
+        title: @tr("Restore Explorer options");
+        description: @tr("Puts back \"Auto arrange icons\" and \"Align icons to grid\" as they were before Bento Desk.");
+        Button {
+            text: @tr("Restore");
+            clicked => {
+                Sys.restore-explorer();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E9F9}";
+        title: @tr("Log level");
+        ComboBox {
+            width: 160px;
+            model: [@tr("Errors"), @tr("Warnings"), @tr("Information"), @tr("Debug"), @tr("Trace")];
+            current-index <=> Cfg.log-level;
+            selected => {
+                Cfg.changed();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E8A5}";
+        title: @tr("Logs");
+        Button {
+            text: @tr("Open the folder");
+            clicked => {
+                Sys.open-logs();
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{EBE8}";
+        title: @tr("Debug package");
+        description: @tr("Collects logs, settings and layout in a folder, to attach to a bug report. Nothing is sent.");
+        Button {
+            text: @tr("Create");
+            clicked => {
+                Sys.debug-package();
+            }
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Resident app");
+    }
+
+    Card {
+        icon: "\u{E7E8}";
+        title: Desk.daemon-running ? @tr("Bento Desk is running") : @tr("Bento Desk is not running");
+        if Desk.daemon-running: Button {
+            text: @tr("Quit Bento Desk");
+            clicked => {
+                Sys.quit-daemon();
+            }
+        }
+        if !Desk.daemon-running: Button {
+            text: @tr("Start");
+            primary: true;
+            clicked => {
+                Sys.start-daemon();
+            }
+        }
+    }
+}
+
+export component AboutPage inherits ScrollPage {
+    PageHeader {
+        title: @tr("About");
+    }
+
+    Panel {
+        HorizontalLayout {
+            spacing: 20px;
+            Image {
+                source: @image-url("../../../assets/bento.png");
+                width: 56px;
+                height: 56px;
+            }
+            VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                Text {
+                    text: "Bento Desk " + App.version;
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: Theme.text;
+                }
+                Text {
+                    text: @tr("Free and open-source software under the MIT license.");
+                    color: Theme.text2;
+                }
+            }
+        }
+    }
+
+    Card {
+        icon: "\u{E72E}";
+        title: @tr("No injection, no network");
+        description: @tr("Bento Desk loads no code into other processes, sends no data and needs no account. It uses only documented Windows APIs.");
+    }
+
+    Card {
+        icon: "\u{E71B}";
+        title: @tr("Source code");
+        description: "github.com/HugoErb/Bento-Desk";
+        Button {
+            text: @tr("Open");
+            clicked => {
+                App.open-url("https://github.com/HugoErb/Bento-Desk");
+            }
+        }
+    }
+
+    SectionLabel {
+        text: @tr("Made with Slint");
+    }
+
+    Panel {
+        AboutSlint {
+            preferred-height: 180px;
+        }
+    }
+}

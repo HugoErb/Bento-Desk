@@ -137,7 +137,7 @@ Windows retire silencieusement un hook LL qui dépasse `LowLevelHooksTimeout`. C
 
 | Événement | Mécanisme |
 |---|---|
-| Ajout, suppression, renommage d'icône | `SHChangeNotifyRegister` sur le Bureau utilisateur et le Bureau public |
+| Ajout, suppression, renommage d'icône | `ReadDirectoryChangesW` sur le Bureau utilisateur et le Bureau public, un thread bloquant par dossier (voir section 16) |
 | Redémarrage d'explorer | Message `TaskbarCreated` |
 | Résolution, écrans, DPI | `WM_DISPLAYCHANGE`, `WM_DPICHANGED`, `WM_SETTINGCHANGE` (zone de travail). Une fenêtre cachée de niveau supérieur les reçoit : une fenêtre `HWND_MESSAGE` ne reçoit pas les messages diffusés. |
 | Sortie de veille | `WM_POWERBROADCAST` (`PBT_APMRESUMEAUTOMATIC`) |
@@ -219,7 +219,7 @@ Les portails affichent des éléments qui ne sont pas sur le bureau. Ils ne peuv
 - menu contextuel via `IContextMenu` dans le processus de l'app ;
 - glisser-déposer via `SHCreateDataObject` et `DoDragDrop` ;
 - chemins longs : API `IShellItem` et manifeste `longPathAware` ;
-- surveillance du dossier : `SHChangeNotifyRegister` tant que le portail est visible.
+- surveillance du dossier : `ReadDirectoryChangesW` tant que le portail existe (voir section 16).
 
 **Peek** : les vraies icônes ne peuvent pas passer au-dessus des fenêtres. Peek ouvre donc une surcouche topmost qui redessine les fences et leurs icônes avec le même composant que les portails. Le fond utilise le backdrop Acrylic de DWM (Windows 11 22H2+), avec un voile semi-transparent en repli sur Windows 10. La sélection multiple avec Ctrl est gérée par l'app. La surcouche tient compte de la zone de travail de chaque écran (`rcWork`), donc des barres des tâches à gauche ou à droite.
 
@@ -269,7 +269,7 @@ Légende : **N** = natif (icônes réelles), **H** = hybride (parking ou rendu p
 | 4 | Portails de dossiers | H | Rendu propre | 3 |
 | 5 | Roll-up (double-clic, ouverture au clic ou au survol, ancrage, reste ouvert pendant un glisser ou un menu) | H | Parking ; survol natif sur le titre | 2 |
 | 6 | Quick-hide (double-clic, exclusions, inactivité) | H | `FWF_NOICONS` ou parking ; minuterie ponctuelle réarmée à chaque entrée | 2 |
-| 7 | Règles et tri automatique, éditeur, test, « Trier maintenant » | N | `bento-core` et `SHChangeNotifyRegister` | 3 |
+| 7 | Règles et tri automatique, éditeur, test, « Trier maintenant » | N | `bento-core` et `ReadDirectoryChangesW` | 3 |
 | 8 | Peek | H, D | Surcouche propre | 5 |
 | 9 | Pages de bureau (raccourci, bords, indicateur) | H | Parking ; bandes de bord | 5 |
 | 10 | Snapshots nommés | N | `bento-config` | 4 |
@@ -543,3 +543,28 @@ La mesure est faite à la fin de chaque phase et comparée à ce tableau.
 6. **Phase 6** : packaging, installeur, README, CI GitHub Actions.
 
 À la fin de chaque phase : ce qui a été fait, comment le tester à la main, les limites connues, les mesures face aux objectifs, et un message de commit en une ligne.
+
+---
+
+## 16. Écarts constatés pendant la réalisation
+
+### Surveillance des dossiers
+
+`SHChangeNotifyRegister` ne livre aucun événement pour un Bureau redirigé par OneDrive, même avec des PIDL du système de fichiers et un enregistrement récursif. La surveillance utilise donc `ReadDirectoryChangesW` en mode synchrone, sur un thread par dossier. Le thread reste bloqué dans l'appel tant que rien ne change : aucun réveil périodique. Il est arrêté avec `CancelSynchronousIo`.
+
+Doc : https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-readdirectorychangesw
+
+Explorer ne rafraîchit pas toujours le bureau quand un fichier est créé par un autre outil. Après quelques secondes sans icône correspondante, Bento Desk appelle `SHChangeNotify(SHCNE_CREATE)`. Les icônes fantômes, dont le fichier n'existe plus, sont retirées avec `SHCNE_DELETE`. Ces appels sont des notifications documentées et ne chargent rien dans explorer.
+
+### Raccourcis (spike S4)
+
+Sur la machine de test, `RegisterHotKey` échoue pour Win+Espace, Ctrl+Win+Espace et Ctrl+Alt+Espace : ces combinaisons sont déjà prises. Ctrl+Alt+D et Ctrl+Win+Page suivante ou Page précédente s'enregistrent. Le raccourci Peek par défaut est donc **Ctrl+Alt+D**. Il se change dans la section Peek des paramètres, avec un enregistreur de combinaison.
+
+### Fenêtre de paramètres
+
+- Slint 1.19 avec le style Fluent, le backend winit et le **rendu logiciel**. Avec le rendu OpenGL (femtovg), le pilote graphique chargé porte la fenêtre à environ 150 Mo de working set. Le rendu logiciel la ramène à environ 22 Mo, pour un rendu identique dans une fenêtre de réglages.
+- Le code généré par le compilateur Slint contient des blocs `unsafe`. Il est isolé dans le module `ui` du binaire, seul endroit où `unsafe_code` est autorisé. Le code écrit à la main dans `bento-settings` n'en contient pas.
+- Traductions : textes source en anglais, français dans `apps/bento-settings/lang/fr/LC_MESSAGES/bento-settings.po`, intégré au binaire. Les textes calculés côté Rust (listes, résumés de règles, messages) sont dans `src/text.rs`.
+- La fenêtre écrit `config.json` (avec un délai de 300 ms pendant les glissements de curseur) puis envoie `ReloadConfig`. Les changements propres à une fence passent par les commandes IPC, car `state.json` appartient à l'application résidente.
+- Mica est demandé sur Windows 11 22H2 et plus. Windows 10 l'ignore et garde le fond uni du style Fluent.
+

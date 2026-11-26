@@ -202,3 +202,76 @@ pub fn pick_folder(owner: Hwnd) -> Option<String> {
         s
     }
 }
+
+/// File type filter of the open and save dialogs: (label, pattern).
+pub type FileFilter<'a> = (&'a str, &'a str);
+
+fn set_filter(dlg: &windows::Win32::UI::Shell::IFileDialog, filter: FileFilter<'_>) -> Option<()> {
+    use windows::Win32::UI::Shell::Common::COMDLG_FILTERSPEC;
+    let name = wide(filter.0);
+    let spec = wide(filter.1);
+    let specs = [COMDLG_FILTERSPEC {
+        pszName: pcwstr(&name),
+        pszSpec: pcwstr(&spec),
+    }];
+    // SAFETY: the dialog copies the strings, which outlive the call.
+    // https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifiledialog-setfiletypes
+    unsafe { dlg.SetFileTypes(&specs) }.ok()
+}
+
+fn dialog_result(dlg: &windows::Win32::UI::Shell::IFileDialog, owner: Hwnd) -> Option<String> {
+    // SAFETY: Show runs a modal loop on this thread; the result string is
+    // freed with the COM allocator.
+    // https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifiledialog-getresult
+    unsafe {
+        dlg.Show(Some(owner.raw())).ok()?;
+        let item = dlg.GetResult().ok()?;
+        let p = item.GetDisplayName(SIGDN_FILESYSPATH).ok()?;
+        let s = p.to_string().ok();
+        CoTaskMemFree(Some(p.0 as *const _));
+        s
+    }
+}
+
+/// "Open" dialog for one file. Returns the chosen path.
+pub fn pick_open_file(owner: Hwnd, filter: FileFilter<'_>) -> Option<String> {
+    // SAFETY: in-process common dialog object.
+    let dlg: IFileOpenDialog =
+        unsafe { CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER) }.ok()?;
+    let base: windows::Win32::UI::Shell::IFileDialog = dlg.cast().ok()?;
+    // SAFETY: plain COM calls.
+    unsafe {
+        let opts = base.GetOptions().ok()?;
+        base.SetOptions(opts | FOS_FORCEFILESYSTEM | windows::Win32::UI::Shell::FOS_FILEMUSTEXIST)
+            .ok()?;
+    }
+    set_filter(&base, filter)?;
+    dialog_result(&base, owner)
+}
+
+/// "Save as" dialog. `default_name` is the proposed file name and
+/// `extension` the extension added when the user types none.
+pub fn pick_save_file(
+    owner: Hwnd,
+    filter: FileFilter<'_>,
+    default_name: &str,
+    extension: &str,
+) -> Option<String> {
+    use windows::Win32::UI::Shell::{FOS_OVERWRITEPROMPT, FileSaveDialog, IFileSaveDialog};
+    // SAFETY: in-process common dialog object.
+    let dlg: IFileSaveDialog =
+        unsafe { CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER) }.ok()?;
+    let base: windows::Win32::UI::Shell::IFileDialog = dlg.cast().ok()?;
+    let name = wide(default_name);
+    let ext = wide(extension);
+    // SAFETY: plain COM calls; the strings outlive them.
+    unsafe {
+        let opts = base.GetOptions().ok()?;
+        base.SetOptions(opts | FOS_FORCEFILESYSTEM | FOS_OVERWRITEPROMPT)
+            .ok()?;
+        base.SetFileName(pcwstr(&name)).ok()?;
+        base.SetDefaultExtension(pcwstr(&ext)).ok()?;
+    }
+    set_filter(&base, filter)?;
+    dialog_result(&base, owner)
+}

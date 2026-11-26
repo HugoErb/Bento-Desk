@@ -1,0 +1,352 @@
+// Building blocks of the pages: cards, headers, navigation items, the
+// shortcut recorder and the fence preview.
+
+import { Theme, Cfg } from "globals.slint";
+import { ScrollView } from "std-widgets.slint";
+
+/// MDL2 glyph.
+export component Glyph inherits Text {
+    font-family: Theme.icon-font;
+    font-size: 16px;
+    color: Theme.text;
+    vertical-alignment: center;
+    horizontal-alignment: center;
+    accessible-role: none;
+}
+
+/// Page title.
+export component PageHeader inherits VerticalLayout {
+    in property <string> title;
+    in property <string> subtitle;
+    padding-bottom: 12px;
+    spacing: 4px;
+    Text {
+        text: root.title;
+        font-size: 28px;
+        font-weight: 600;
+        color: Theme.text;
+        accessible-role: text;
+    }
+    if root.subtitle != "": Text {
+        text: root.subtitle;
+        font-size: 13px;
+        color: Theme.text2;
+        wrap: word-wrap;
+    }
+}
+
+/// Small bold label above a group of cards.
+export component SectionLabel inherits VerticalLayout {
+    in property <string> text;
+    padding-top: 18px;
+    padding-bottom: 4px;
+    Text {
+        text: root.text;
+        font-size: 14px;
+        font-weight: 600;
+        color: Theme.text;
+    }
+}
+
+/// One setting: icon, title, description on the left, control on the right.
+export component Card inherits Rectangle {
+    in property <string> icon;
+    in property <string> title;
+    in property <string> description;
+    in property <bool> clickable;
+    in property <bool> selected;
+    callback clicked();
+    background: selected ? Theme.card-hover : (ta.has-hover && clickable ? Theme.card-hover : Theme.card);
+    border-radius: 6px;
+    border-width: selected ? 2px : 1px;
+    border-color: selected ? Theme.accent : Theme.stroke;
+    min-height: 64px;
+    animate background { duration: 120ms; }
+    ta := TouchArea {
+        enabled: root.clickable;
+        mouse-cursor: root.clickable ? MouseCursor.pointer : MouseCursor.default;
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 16px;
+        if root.icon != "": Glyph {
+            text: root.icon;
+            width: 20px;
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            spacing: 2px;
+            Text {
+                text: root.title;
+                font-size: 14px;
+                color: Theme.text;
+                wrap: word-wrap;
+            }
+            if root.description != "": Text {
+                text: root.description;
+                font-size: 12px;
+                color: Theme.text2;
+                wrap: word-wrap;
+            }
+        }
+        HorizontalLayout {
+            alignment: end;
+            spacing: 8px;
+            horizontal-stretch: 0;
+            @children
+        }
+    }
+}
+
+/// Card without the title column, for free content.
+export component Panel inherits Rectangle {
+    background: Theme.card;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Theme.stroke;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 10px;
+        @children
+    }
+}
+
+/// Item of the navigation pane.
+export component NavItem inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <bool> selected;
+    callback clicked();
+    height: 38px;
+    border-radius: 4px;
+    background: selected ? Theme.subtle2 : (ta.has-hover ? Theme.subtle : transparent);
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => {
+        root.clicked();
+    }
+    animate background { duration: 100ms; }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    Rectangle {
+        x: 0;
+        width: 3px;
+        height: root.selected ? 16px : 0;
+        y: (root.height - self.height) / 2;
+        border-radius: 1.5px;
+        background: Theme.accent;
+        animate height { duration: 150ms; easing: ease-out; }
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 8px;
+        spacing: 14px;
+        Glyph {
+            text: root.icon;
+            width: 18px;
+        }
+        Text {
+            text: root.text;
+            font-size: 14px;
+            color: Theme.text;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+}
+
+/// Shortcut recorder: click, then press the combination. Escape cancels.
+export component HotkeyField inherits Rectangle {
+    in-out property <string> value;
+    private property <bool> recording: fs.has-focus;
+    width: 230px;
+    height: 32px;
+    border-radius: 4px;
+    background: Theme.subtle;
+    border-width: 1px;
+    border-color: recording ? Theme.accent : Theme.divider;
+    accessible-role: button;
+    accessible-label: root.value == "" ? @tr("No shortcut") : root.value;
+    fs := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                self.clear-focus();
+                return accept;
+            }
+            if (event.text == Key.Backspace) {
+                root.value = "";
+                Cfg.changed();
+                self.clear-focus();
+                return accept;
+            }
+            let s = Cfg.capture(event.text, event.modifiers.control, event.modifiers.alt, event.modifiers.shift, event.modifiers.meta);
+            if (s != "") {
+                root.value = s;
+                Cfg.changed();
+                self.clear-focus();
+            }
+            accept
+        }
+        TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => {
+                fs.focus();
+            }
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 6px;
+        spacing: 6px;
+        Text {
+            text: root.recording ? @tr("Press a combination...") : (root.value == "" ? @tr("None") : root.value);
+            color: root.recording ? Theme.accent : Theme.text;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+        if root.value != "" && !root.recording: Rectangle {
+            width: 24px;
+            border-radius: 4px;
+            background: clear.has-hover ? Theme.subtle2 : transparent;
+            clear := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => {
+                    root.value = "";
+                    Cfg.changed();
+                }
+            }
+
+            Glyph {
+                text: "\u{E711}";
+                font-size: 10px;
+            }
+        }
+    }
+}
+
+/// Fence drawn over a sample wallpaper, for the Appearance page.
+export component FencePreview inherits Rectangle {
+    in property <color> fill;
+    in property <color> text-color;
+    in property <string> title;
+    in property <int> title-mode;
+    in property <length> title-size;
+    in property <bool> bold;
+    in property <length> radius;
+    in property <bool> border;
+    in property <bool> blur;
+    height: 230px;
+    border-radius: 8px;
+    clip: true;
+    background: @linear-gradient(135deg, #1e3c72 0%, #2a5298 35%, #8e54e9 70%, #f7797d 100%);
+    Rectangle {
+        x: 40px;
+        y: 30px;
+        width: 150px;
+        height: 150px;
+        border-radius: 75px;
+        background: #ffffff30;
+    }
+
+    Rectangle {
+        x: parent.width - 160px;
+        y: 120px;
+        width: 220px;
+        height: 220px;
+        border-radius: 110px;
+        background: #00000030;
+    }
+
+    fence := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: 28px;
+        width: min(parent.width - 48px, 380px);
+        height: 172px;
+        border-radius: root.radius;
+        background: root.fill;
+        border-width: root.border ? 1px : 0;
+        border-color: #ffffff38;
+        clip: true;
+        if root.blur: Rectangle {
+            background: #ffffff0a;
+        }
+        VerticalLayout {
+            if root.title-mode != 0: Rectangle {
+                height: 32px;
+                background: #ffffff08;
+                Text {
+                    text: root.title;
+                    color: root.text-color;
+                    font-size: root.title-size;
+                    font-weight: root.bold ? 700 : 400;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    opacity: root.title-mode == 1 ? 0.55 : 1;
+                }
+            }
+            HorizontalLayout {
+                padding: 14px;
+                spacing: 18px;
+                alignment: center;
+                for i in 4: VerticalLayout {
+                    spacing: 6px;
+                    alignment: start;
+                    Rectangle {
+                        width: 44px;
+                        height: 44px;
+                        border-radius: 8px;
+                        background: i == 0 ? #f2c94c : i == 1 ? #56ccf2 : i == 2 ? #6fcf97 : #eb5757;
+                        Rectangle {
+                            x: 8px;
+                            y: 8px;
+                            width: 28px;
+                            height: 6px;
+                            border-radius: 3px;
+                            background: #ffffff90;
+                        }
+                    }
+                    Text {
+                        text: i == 0 ? "Notes" : i == 1 ? "Photos" : i == 2 ? "Projets" : "Jeux";
+                        color: #ffffff;
+                        font-size: 12px;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Scrollable page body.
+export component ScrollPage inherits Rectangle {
+    sv := ScrollView {
+        content-width: self.visible-width;
+        content-height: col.preferred-height;
+        col := VerticalLayout {
+            width: sv.visible-width;
+            padding-left: 32px;
+            padding-right: 32px;
+            padding-top: 24px;
+            padding-bottom: 32px;
+            spacing: 4px;
+            alignment: start;
+            @children
+        }
+    }
+}

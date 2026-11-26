@@ -211,10 +211,7 @@ impl App {
         let (listing_tx, listing_rx) = mpsc::channel();
         let (wallpaper_tx, wallpaper_rx) = mpsc::channel();
         let (fs_tx, fs_rx) = mpsc::channel();
-        let theme = Theme::new(
-            !bento_win::system::apps_use_light_theme(),
-            bento_win::dwm::accent_color().unwrap_or(bento_core::color::Rgba::rgb(0, 120, 212)),
-        );
+        let theme = system_theme(&config);
         let mut app = App {
             paths,
             config,
@@ -315,6 +312,7 @@ impl App {
 
     /// Applies everything that depends on the configuration.
     pub fn apply_config_side_effects(&mut self) {
+        self.theme = system_theme(&self.config);
         self.lang = self
             .config
             .general
@@ -1311,10 +1309,10 @@ impl App {
                 } else if m.wparam == 0x2F {
                     self.set_timer(Timer::Display, 500);
                 } else {
-                    let dark = !bento_win::system::apps_use_light_theme();
-                    let accent = bento_win::dwm::accent_color().unwrap_or(self.theme.accent);
-                    if dark != self.theme.dark || accent != self.theme.accent {
-                        self.theme = Theme::new(dark, accent);
+                    let theme = system_theme(&self.config);
+                    if theme.dark != self.theme.dark || theme.accent != self.theme.accent {
+                        self.theme = theme;
+                        self.render_all();
                     }
                 }
             }
@@ -1463,7 +1461,10 @@ impl App {
                 self.rebuild_fences();
                 self.relayout();
             }
-            IpcCmd::SaveSnapshot { name } => self.save_snapshot(Some(name)),
+            IpcCmd::SaveSnapshot { name } => {
+                let name = Some(name.trim().to_owned()).filter(|n| !n.is_empty());
+                self.save_snapshot(name);
+            }
             IpcCmd::RestoreSnapshot { name } => self.restore_snapshot(&name),
             IpcCmd::SortNow => self.sort_now(),
             IpcCmd::PublishItems => self.publish_items_if_requested(),
@@ -1652,4 +1653,18 @@ impl App {
         self.edges.clear();
         self.tray = None;
     }
+}
+
+/// Default highlight color when the Windows accent is not used.
+const NEUTRAL_ACCENT: bento_core::color::Rgba = bento_core::color::Rgba::rgb(0, 120, 212);
+
+/// Light or dark theme of Windows, with its accent color unless the user
+/// turned that off.
+fn system_theme(config: &AppConfig) -> Theme {
+    let accent = if config.appearance.use_accent_color {
+        bento_win::dwm::accent_color().unwrap_or(NEUTRAL_ACCENT)
+    } else {
+        NEUTRAL_ACCENT
+    };
+    Theme::new(!bento_win::system::apps_use_light_theme(), accent)
 }

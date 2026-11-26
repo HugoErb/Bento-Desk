@@ -1,0 +1,667 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr\n"
+
+msgid "Home"
+msgstr "Accueil"
+
+msgid "Fences"
+msgstr "Fences"
+
+msgid "Appearance"
+msgstr "Apparence"
+
+msgid "Layout"
+msgstr "Disposition"
+
+msgid "Roll-up and quick-hide"
+msgstr "Enroulement et masquage"
+
+msgid "Pages"
+msgstr "Pages"
+
+msgid "Sorting rules"
+msgstr "Règles de tri"
+
+msgid "Folder portals"
+msgstr "Portails de dossiers"
+
+msgid "Peek"
+msgstr "Peek"
+
+msgid "Layouts and snapshots"
+msgstr "Dispositions et snapshots"
+
+msgid "General"
+msgstr "Général"
+
+msgid "Backup"
+msgstr "Sauvegarde"
+
+msgid "Troubleshooting"
+msgstr "Dépannage"
+
+msgid "About"
+msgstr "À propos"
+
+msgid "Bento Desk settings"
+msgstr "Paramètres de Bento Desk"
+
+msgid "Organize your desktop icons into fences, without touching any other process."
+msgstr "Rangez les icônes du bureau dans des fences, sans toucher à aucun autre processus."
+
+msgid "Running"
+msgstr "Actif"
+
+msgid "Not running"
+msgstr "Arrêté"
+
+msgid "{} fences on {} pages"
+msgstr "{} fences sur {} pages"
+
+msgid "Start Bento Desk"
+msgstr "Démarrer Bento Desk"
+
+msgid "Get started"
+msgstr "Prise en main"
+
+msgid "Create a fence"
+msgstr "Créer une fence"
+
+msgid "Hold the right mouse button on an empty desktop area and drag a rectangle, or use the tray icon menu."
+msgstr "Maintenez le bouton droit sur une zone vide du bureau et tracez un rectangle, ou utilisez le menu de l'icône de notification."
+
+msgid "Move icons"
+msgstr "Déplacer des icônes"
+
+msgid "Drag desktop icons into a fence. Icons stay real desktop icons: open, rename and right-click work as usual."
+msgstr "Glissez les icônes du bureau dans une fence. Ce sont toujours de vraies icônes : ouverture, renommage et clic droit fonctionnent comme d'habitude."
+
+msgid "Roll up a fence"
+msgstr "Enrouler une fence"
+
+msgid "Double-click the title bar to keep only the title visible."
+msgstr "Double-cliquez sur la barre de titre pour ne garder que le titre visible."
+
+msgid "Press the Peek shortcut to show your fences above all windows."
+msgstr "Appuyez sur le raccourci Peek pour afficher vos fences au-dessus de toutes les fenêtres."
+
+msgid "None"
+msgstr "Aucun"
+
+msgid "Shortcuts"
+msgstr "Raccourcis"
+
+msgid "Manage fences"
+msgstr "Gérer les fences"
+
+msgid "Fences of the current display layout. Click one to edit it."
+msgstr "Fences de la disposition d'écrans actuelle. Cliquez sur une fence pour la modifier."
+
+msgid "No fence yet. Hold the right mouse button on the desktop and drag to create one."
+msgstr "Aucune fence pour l'instant. Maintenez le bouton droit sur le bureau et glissez pour en créer une."
+
+msgid "(untitled)"
+msgstr "(sans titre)"
+
+msgid "Custom style"
+msgstr "Style personnalisé"
+
+msgid "Selected fence"
+msgstr "Fence sélectionnée"
+
+msgid "Title"
+msgstr "Titre"
+
+msgid "Rename"
+msgstr "Renommer"
+
+msgid "Roll up when docked"
+msgstr "Enrouler quand elle est ancrée"
+
+msgid "Roll up automatically when the fence touches a screen edge."
+msgstr "S'enroule automatiquement quand la fence touche un bord de l'écran."
+
+msgid "Stay visible during quick-hide"
+msgstr "Rester visible pendant le masquage rapide"
+
+msgid "Appearance of this fence"
+msgstr "Apparence de cette fence"
+
+msgid "Color, transparency, title and corners."
+msgstr "Couleur, transparence, titre et coins."
+
+msgid "Customize"
+msgstr "Personnaliser"
+
+msgid "Changes are applied to the desktop at once."
+msgstr "Les modifications s'appliquent immédiatement au bureau."
+
+msgid "Apply to"
+msgstr "Appliquer à"
+
+msgid "The default style is used by every fence without its own style."
+msgstr "Le style par défaut est utilisé par toutes les fences sans style propre."
+
+msgid "Use the default style"
+msgstr "Utiliser le style par défaut"
+
+msgid "Color"
+msgstr "Couleur"
+
+msgid "Presets"
+msgstr "Préréglages"
+
+msgid "Hue"
+msgstr "Teinte"
+
+msgid "Saturation"
+msgstr "Saturation"
+
+msgid "Intensity"
+msgstr "Intensité"
+
+msgid "Transparency"
+msgstr "Transparence"
+
+msgid "Background effect"
+msgstr "Effet de fond"
+
+msgid "Blur shows the wallpaper under the fence, softened."
+msgstr "Le flou montre le fond d'écran sous la fence, adouci."
+
+msgid "Solid color"
+msgstr "Couleur unie"
+
+msgid "Blur"
+msgstr "Flou"
+
+msgid "Chameleon"
+msgstr "Caméléon"
+
+msgid "Adapt the color to the wallpaper under the fence."
+msgstr "Adapte la couleur au fond d'écran sous la fence."
+
+msgid "Show the title"
+msgstr "Afficher le titre"
+
+msgid "Never"
+msgstr "Jamais"
+
+msgid "On hover"
+msgstr "Au survol"
+
+msgid "Always"
+msgstr "Toujours"
+
+msgid "Font"
+msgstr "Police"
+
+msgid "Size"
+msgstr "Taille"
+
+msgid "Bold"
+msgstr "Gras"
+
+msgid "Title color"
+msgstr "Couleur du titre"
+
+msgid "Automatic"
+msgstr "Automatique"
+
+msgid "White"
+msgstr "Blanc"
+
+msgid "Black"
+msgstr "Noir"
+
+msgid "Shape"
+msgstr "Forme"
+
+msgid "Corner radius"
+msgstr "Arrondi des coins"
+
+msgid "Border"
+msgstr "Bordure"
+
+msgid "Apply this style to every fence"
+msgstr "Appliquer ce style à toutes les fences"
+
+msgid "Reset"
+msgstr "Réinitialiser"
+
+msgid "Windows"
+msgstr "Windows"
+
+msgid "Use the accent color"
+msgstr "Utiliser la couleur d'accentuation"
+
+msgid "Highlights follow the Windows accent color."
+msgstr "Les surbrillances suivent la couleur d'accentuation de Windows."
+
+msgid "Layout and magnetism"
+msgstr "Disposition et magnétisme"
+
+msgid "How fences snap while they are moved or resized."
+msgstr "Comment les fences s'aimantent pendant un déplacement ou un redimensionnement."
+
+msgid "Snap to screen edges"
+msgstr "Aimanter aux bords de l'écran"
+
+msgid "Snap to other fences"
+msgstr "Aimanter aux autres fences"
+
+msgid "Snap distance"
+msgstr "Distance d'aimantation"
+
+msgid "Gap between snapped fences"
+msgstr "Écart entre fences aimantées"
+
+msgid "Icons"
+msgstr "Icônes"
+
+msgid "Icon spacing in fences"
+msgstr "Espacement des icônes dans les fences"
+
+msgid "Percentage of the desktop icon spacing."
+msgstr "Pourcentage de l'espacement des icônes du bureau."
+
+msgid "Roll-up"
+msgstr "Enroulement"
+
+msgid "Double-click the title to roll up"
+msgstr "Double-cliquer sur le titre pour enrouler"
+
+msgid "Open a rolled-up fence"
+msgstr "Ouvrir une fence enroulée"
+
+msgid "The fence opens until the mouse leaves it."
+msgstr "La fence s'ouvre jusqu'à ce que la souris la quitte."
+
+msgid "On click"
+msgstr "Au clic"
+
+msgid "Roll up new docked fences"
+msgstr "Enrouler les nouvelles fences ancrées"
+
+msgid "Default value for fences docked to a screen edge."
+msgstr "Valeur par défaut pour les fences ancrées à un bord de l'écran."
+
+msgid "Quick-hide"
+msgstr "Masquage rapide"
+
+msgid "Double-click the desktop to hide icons"
+msgstr "Double-cliquer sur le bureau pour masquer les icônes"
+
+msgid "Double-click again to show them."
+msgstr "Double-cliquez à nouveau pour les afficher."
+
+msgid "Keep icons outside fences visible"
+msgstr "Garder visibles les icônes hors des fences"
+
+msgid "Hide after inactivity"
+msgstr "Masquer après inactivité"
+
+msgid "Seconds without desktop activity, 0 = never."
+msgstr "Secondes sans activité sur le bureau, 0 = jamais."
+
+msgid "Quick-hide shortcut"
+msgstr "Raccourci du masquage rapide"
+
+msgid "Desktop pages"
+msgstr "Pages du bureau"
+
+msgid "Several sets of fences on the same desktop, one page at a time."
+msgstr "Plusieurs ensembles de fences sur le même bureau, une page à la fois."
+
+msgid "Enable pages"
+msgstr "Activer les pages"
+
+msgid "Switch page at screen edges"
+msgstr "Changer de page aux bords de l'écran"
+
+msgid "Push the mouse against the left or right edge of the desktop."
+msgstr "Poussez la souris contre le bord gauche ou droit du bureau."
+
+msgid "Show the page indicator"
+msgstr "Afficher l'indicateur de page"
+
+msgid "Next page"
+msgstr "Page suivante"
+
+msgid "Previous page"
+msgstr "Page précédente"
+
+msgid "Name"
+msgstr "Nom"
+
+msgid "Extension"
+msgstr "Extension"
+
+msgid "Type"
+msgstr "Type"
+
+msgid "Shortcut target"
+msgstr "Cible du raccourci"
+
+msgid "Date"
+msgstr "Date"
+
+msgid "contains"
+msgstr "contient"
+
+msgid "starts with"
+msgstr "commence par"
+
+msgid "is"
+msgstr "est"
+
+msgid "pdf, docx, xlsx"
+msgstr "pdf, docx, xlsx"
+
+msgid "Shortcut"
+msgstr "Raccourci"
+
+msgid "Folder"
+msgstr "Dossier"
+
+msgid "File"
+msgstr "Fichier"
+
+msgid "Internet link"
+msgstr "Lien Internet"
+
+msgid "System item"
+msgstr "Élément système"
+
+msgid "modified"
+msgstr "modifié"
+
+msgid "created"
+msgstr "créé"
+
+msgid "less than"
+msgstr "il y a moins de"
+
+msgid "more than"
+msgstr "il y a plus de"
+
+msgid "days ago"
+msgstr "jours"
+
+msgid "Remove"
+msgstr "Retirer"
+
+msgid "New desktop icons go to the fence of the first matching rule. Rules are checked from top to bottom."
+msgstr "Les nouvelles icônes du bureau vont dans la fence de la première règle qui correspond. Les règles sont vérifiées de haut en bas."
+
+msgid "Apply rules to new icons"
+msgstr "Appliquer les règles aux nouvelles icônes"
+
+msgid "Sort the whole desktop now"
+msgstr "Trier tout le bureau maintenant"
+
+msgid "Applies the rules to every icon of the desktop, including icons already in fences."
+msgstr "Applique les règles à toutes les icônes du bureau, y compris celles déjà dans des fences."
+
+msgid "Sort now"
+msgstr "Trier"
+
+msgid "Rules"
+msgstr "Règles"
+
+msgid "No rule. Add one to file new icons automatically."
+msgstr "Aucune règle. Ajoutez-en une pour ranger automatiquement les nouvelles icônes."
+
+msgid "(unnamed rule)"
+msgstr "(règle sans nom)"
+
+msgid "Add a rule"
+msgstr "Ajouter une règle"
+
+msgid "Move up"
+msgstr "Monter"
+
+msgid "Move down"
+msgstr "Descendre"
+
+msgid "Delete"
+msgstr "Supprimer"
+
+msgid "Edit the rule"
+msgstr "Modifier la règle"
+
+msgid "Destination fence"
+msgstr "Fence de destination"
+
+msgid "Conditions"
+msgstr "Conditions"
+
+msgid "All conditions must match"
+msgstr "Toutes les conditions doivent correspondre"
+
+msgid "Any condition can match"
+msgstr "Une seule condition suffit"
+
+msgid "Add a condition"
+msgstr "Ajouter une condition"
+
+msgid "Test the rule"
+msgstr "Tester la règle"
+
+msgid "Test"
+msgstr "Tester"
+
+msgid "A portal shows the content of any folder inside a fence. Create one from the tray icon menu or from a fence menu."
+msgstr "Un portail affiche le contenu de n'importe quel dossier dans une fence. Créez-en un depuis le menu de l'icône de notification ou le menu d'une fence."
+
+msgid "Default view"
+msgstr "Affichage par défaut"
+
+msgid "List"
+msgstr "Liste"
+
+msgid "Hide the folder icon in the title"
+msgstr "Masquer l'icône du dossier dans le titre"
+
+msgid "Show hidden files"
+msgstr "Afficher les fichiers cachés"
+
+msgid "Shows your fences above all windows. Click an item to open it, Escape to close."
+msgstr "Affiche vos fences au-dessus de toutes les fenêtres. Cliquez sur un élément pour l'ouvrir, Échap pour fermer."
+
+msgid "Peek shortcut"
+msgstr "Raccourci Peek"
+
+msgid "Win+Space switches the keyboard layout on Windows, so another combination is used by default."
+msgstr "Win+Espace change la disposition du clavier sous Windows, une autre combinaison est donc utilisée par défaut."
+
+msgid "Dim the windows behind"
+msgstr "Assombrir les fenêtres derrière"
+
+msgid "Bento Desk keeps one layout per display configuration. A snapshot saves the current layout to restore it later."
+msgstr "Bento Desk garde une disposition par configuration d'écrans. Un snapshot enregistre la disposition actuelle pour la restaurer plus tard."
+
+msgid "Restore the layout of each display configuration"
+msgstr "Restaurer la disposition de chaque configuration d'écrans"
+
+msgid "When monitors are plugged or unplugged, fences go back to where they were for that configuration."
+msgstr "Quand des écrans sont branchés ou débranchés, les fences reprennent leur place pour cette configuration."
+
+msgid "Current layout"
+msgstr "Disposition actuelle"
+
+msgid "Snapshots"
+msgstr "Snapshots"
+
+msgid "Save a snapshot"
+msgstr "Enregistrer un snapshot"
+
+msgid "Name (optional)"
+msgstr "Nom (facultatif)"
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "No snapshot yet."
+msgstr "Aucun snapshot pour l'instant."
+
+msgid "Restore"
+msgstr "Restaurer"
+
+msgid "Monitors"
+msgstr "Écrans"
+
+msgid "Swap the fences of two monitors"
+msgstr "Échanger les fences de deux écrans"
+
+msgid "Swap"
+msgstr "Échanger"
+
+msgid "Language"
+msgstr "Langue"
+
+msgid "Windows language"
+msgstr "Langue de Windows"
+
+msgid "Start with Windows"
+msgstr "Démarrer avec Windows"
+
+msgid "Not available in portable mode."
+msgstr "Indisponible en mode portable."
+
+msgid "Show in the taskbar"
+msgstr "Afficher dans la barre des tâches"
+
+msgid "Adds a taskbar button, useful with some docks and taskbar tools."
+msgstr "Ajoute un bouton dans la barre des tâches, utile avec certains docks et outils de barre des tâches."
+
+msgid "Desktop gestures"
+msgstr "Gestes sur le bureau"
+
+msgid "Draw a fence with the right button, double-click to hide icons, scroll fences with the wheel. Uses a mouse hook only while the desktop is in the foreground."
+msgstr "Tracer une fence au bouton droit, double-cliquer pour masquer les icônes, faire défiler les fences à la molette. Utilise un hook souris uniquement quand le bureau est au premier plan."
+
+msgid "Game mode"
+msgstr "Mode jeu"
+
+msgid "Pause during full-screen applications"
+msgstr "Pause pendant les applications en plein écran"
+
+msgid "Stops the mouse hook and every background task while a game or a video is full screen."
+msgstr "Arrête le hook souris et toute tâche de fond pendant qu'un jeu ou une vidéo est en plein écran."
+
+msgid "Pause while these programs are in the foreground (one executable name per line):"
+msgstr "Pause quand ces programmes sont au premier plan (un nom d'exécutable par ligne) :"
+
+msgid "One file holds the settings, the fences of every layout and the snapshots."
+msgstr "Un seul fichier contient les paramètres, les fences de toutes les dispositions et les snapshots."
+
+msgid "Export"
+msgstr "Exporter"
+
+msgid "Save everything to a file."
+msgstr "Enregistrer tout dans un fichier."
+
+msgid "Export..."
+msgstr "Exporter..."
+
+msgid "Import"
+msgstr "Importer"
+
+msgid "Replace the current settings and fences with a file. The desktop is rebuilt at once."
+msgstr "Remplacer les paramètres et les fences actuels par un fichier. Le bureau est reconstruit immédiatement."
+
+msgid "Import..."
+msgstr "Importer..."
+
+msgid "Data folder"
+msgstr "Dossier des données"
+
+msgid "Open"
+msgstr "Ouvrir"
+
+msgid "Recover lost icons"
+msgstr "Récupérer les icônes perdues"
+
+msgid "Brings every hidden or off-screen icon back to the visible desktop."
+msgstr "Ramène sur le bureau visible toutes les icônes masquées ou hors de l'écran."
+
+msgid "Recover"
+msgstr "Récupérer"
+
+msgid "Restore Explorer options"
+msgstr "Rétablir les options de l'Explorateur"
+
+msgid "Puts back \"Auto arrange icons\" and \"Align icons to grid\" as they were before Bento Desk."
+msgstr "Remet « Réorganiser automatiquement les icônes » et « Aligner les icônes sur la grille » comme avant Bento Desk."
+
+msgid "Log level"
+msgstr "Niveau de journalisation"
+
+msgid "Errors"
+msgstr "Erreurs"
+
+msgid "Warnings"
+msgstr "Avertissements"
+
+msgid "Information"
+msgstr "Informations"
+
+msgid "Debug"
+msgstr "Débogage"
+
+msgid "Trace"
+msgstr "Trace"
+
+msgid "Logs"
+msgstr "Journaux"
+
+msgid "Open the folder"
+msgstr "Ouvrir le dossier"
+
+msgid "Debug package"
+msgstr "Paquet de diagnostic"
+
+msgid "Collects logs, settings and layout in a folder, to attach to a bug report. Nothing is sent."
+msgstr "Rassemble journaux, paramètres et disposition dans un dossier, à joindre à un rapport de bug. Rien n'est envoyé."
+
+msgid "Create"
+msgstr "Créer"
+
+msgid "Resident app"
+msgstr "Application résidente"
+
+msgid "Bento Desk is running"
+msgstr "Bento Desk est actif"
+
+msgid "Bento Desk is not running"
+msgstr "Bento Desk n'est pas lancé"
+
+msgid "Quit Bento Desk"
+msgstr "Quitter Bento Desk"
+
+msgid "Start"
+msgstr "Démarrer"
+
+msgid "Free and open-source software under the MIT license."
+msgstr "Logiciel libre et open source sous licence MIT."
+
+msgid "No injection, no network"
+msgstr "Aucune injection, aucun réseau"
+
+msgid "Bento Desk loads no code into other processes, sends no data and needs no account. It uses only documented Windows APIs."
+msgstr "Bento Desk ne charge aucun code dans d'autres processus, n'envoie aucune donnée et ne demande aucun compte. Il n'utilise que des API Windows documentées."
+
+msgid "Source code"
+msgstr "Code source"
+
+msgid "Made with Slint"
+msgstr "Réalisé avec Slint"
+
+msgid "No shortcut"
+msgstr "Aucun raccourci"
+
+msgid "Press a combination..."
+msgstr "Appuyez sur une combinaison..."

@@ -1,8 +1,27 @@
 [package]
 name = "bento-settings"
+description = "Bento Desk settings window."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version = "1.95"
+
+[[bin]]
+name = "bento-settings"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+bento-config.workspace = true
+bento-core.workspace = true
+bento-win.workspace = true
+serde_json.workspace = true
+slint = { version = "=1.19.1", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-software", "accessibility", "raw-window-handle-06"] }
+raw-window-handle = "0.6"
+
+[build-dependencies]
+embed-resource.workspace = true
+slint-build = "=1.19.1"
 
 [lints]
 workspace = true

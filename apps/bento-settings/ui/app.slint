@@ -1,0 +1,115 @@
+// Settings window of Bento Desk: navigation pane and pages.
+
+import { Palette } from "std-widgets.slint";
+import { Theme, App, Cfg, Desk, Style, Rules, Snaps, Sys, FenceRow, RuleRow, CondRow, SnapRow } from "globals.slint";
+import { NavItem, Glyph } from "widgets.slint";
+import { HomePage, FencesPage, AppearancePage, LayoutPage, BehaviorPage, PagesPage, RulesPage, PortalsPage, PeekPage, SnapshotsPage, GeneralPage, BackupPage, TroubleshootingPage, AboutPage } from "pages.slint";
+
+export { Theme, App, Cfg, Desk, Style, Rules, Snaps, Sys, FenceRow, RuleRow, CondRow, SnapRow }
+
+struct Nav {
+    icon: string,
+    text: string,
+}
+
+export component MainWindow inherits Window {
+    in property <string> window-title;
+    title: window-title;
+    icon: @image-url("../../../assets/bento.png");
+    preferred-width: 1060px;
+    preferred-height: 760px;
+    min-width: 760px;
+    min-height: 520px;
+    background: Theme.page;
+    default-font-size: 14px;
+
+    private property <[Nav]> nav: [
+        { icon: "\u{E80F}", text: @tr("Home") },
+        { icon: "\u{ECA5}", text: @tr("Fences") },
+        { icon: "\u{E790}", text: @tr("Appearance") },
+        { icon: "\u{E8A9}", text: @tr("Layout") },
+        { icon: "\u{E70E}", text: @tr("Roll-up and quick-hide") },
+        { icon: "\u{E7C3}", text: @tr("Pages") },
+        { icon: "\u{E8CB}", text: @tr("Sorting rules") },
+        { icon: "\u{E838}", text: @tr("Folder portals") },
+        { icon: "\u{E7B3}", text: @tr("Peek") },
+        { icon: "\u{E81C}", text: @tr("Layouts and snapshots") },
+        { icon: "\u{E713}", text: @tr("General") },
+        { icon: "\u{E74E}", text: @tr("Backup") },
+        { icon: "\u{E90F}", text: @tr("Troubleshooting") },
+        { icon: "\u{E946}", text: @tr("About") },
+    ];
+
+    HorizontalLayout {
+        VerticalLayout {
+            width: 280px;
+            padding: 8px;
+            padding-top: 14px;
+            spacing: 2px;
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-bottom: 14px;
+                spacing: 12px;
+                Image {
+                    source: @image-url("../../../assets/bento.png");
+                    width: 20px;
+                    height: 20px;
+                }
+                Text {
+                    text: @tr("Bento Desk settings");
+                    font-size: 13px;
+                    color: Theme.text2;
+                    vertical-alignment: center;
+                }
+            }
+            for n[i] in root.nav: NavItem {
+                icon: n.icon;
+                text: n.text;
+                selected: App.page == i;
+                clicked => {
+                    App.page = i;
+                }
+            }
+            Rectangle {
+                vertical-stretch: 1;
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            if App.page == 0: HomePage { }
+            if App.page == 1: FencesPage { }
+            if App.page == 2: AppearancePage { }
+            if App.page == 3: LayoutPage { }
+            if App.page == 4: BehaviorPage { }
+            if App.page == 5: PagesPage { }
+            if App.page == 6: RulesPage { }
+            if App.page == 7: PortalsPage { }
+            if App.page == 8: PeekPage { }
+            if App.page == 9: SnapshotsPage { }
+            if App.page == 10: GeneralPage { }
+            if App.page == 11: BackupPage { }
+            if App.page == 12: TroubleshootingPage { }
+            if App.page == 13: AboutPage { }
+
+            if App.toast != "": Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: parent.height - self.height - 24px;
+                width: min(toast-text.preferred-width + 40px, parent.width - 48px);
+                height: 40px;
+                border-radius: 8px;
+                background: Theme.dark ? #3a3a3a : #ffffff;
+                border-width: 1px;
+                border-color: Theme.divider;
+                drop-shadow-blur: 16px;
+                drop-shadow-color: #00000040;
+                toast-text := Text {
+                    text: App.toast;
+                    color: Theme.text;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+}

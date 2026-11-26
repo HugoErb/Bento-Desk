@@ -201,6 +201,14 @@ impl Hwnd {
         let _ = unsafe { wm::ShowWindow(self.raw(), wm::SW_SHOW) };
     }
 
+    /// Restores a minimized window and asks for activation.
+    pub fn restore_and_focus(self) -> bool {
+        // SAFETY: plain values.
+        // https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-showwindow
+        let _ = unsafe { wm::ShowWindow(self.raw(), wm::SW_RESTORE) };
+        self.set_foreground()
+    }
+
     pub fn minimize(self) {
         // SAFETY: plain values.
         let _ = unsafe { wm::ShowWindow(self.raw(), wm::SW_SHOWMINNOACTIVE) };
@@ -666,6 +674,15 @@ pub fn find_window(class: &str) -> Option<Hwnd> {
     let w = wide(class);
     // SAFETY: `w` outlives the call.
     let h = unsafe { wm::FindWindowW(pcwstr(&w), PCWSTR::null()) }.ok()?;
+    (!h.is_invalid()).then(|| Hwnd::from_raw(h))
+}
+
+/// Finds a top-level window by title.
+pub fn find_window_by_title(title: &str) -> Option<Hwnd> {
+    let w = wide(title);
+    // SAFETY: `w` outlives the call.
+    // https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-findwindoww
+    let h = unsafe { wm::FindWindowW(PCWSTR::null(), pcwstr(&w)) }.ok()?;
     (!h.is_invalid()).then(|| Hwnd::from_raw(h))
 }
 
