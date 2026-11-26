@@ -53,8 +53,8 @@ export global Cfg {
     in-out property <bool> rollup-double-click;
     in-out property <int> rollup-open-on;
     in-out property <bool> rollup-auto-docked;
+    in-out property <bool> rollup-animate;
     // Quick-hide
-    in-out property <bool> qh-double-click;
     in-out property <bool> qh-keep-free-icons;
     in-out property <int> qh-idle-seconds;
     // Pages
@@ -81,6 +81,8 @@ export global Cfg {
     callback changed();
     /// Language changed: applied at once.
     callback language-changed();
+    /// Puts back the default values of the settings of a page (`App.page`).
+    callback reset-page(int);
     /// Builds the text of a shortcut from a key press; empty if the key
     /// alone is not usable.
     pure callback capture(string, bool, bool, bool, bool) -> string;
@@ -130,6 +132,13 @@ export global ColorUtil {
     pure callback parse-hex(string) -> Hsl;
 }
 
+/// Installed font family.
+export struct FontItem {
+    name: string,
+    /// Symbol glyphs: the name is written with the default font.
+    symbol: bool,
+}
+
 /// Style editor of the Appearance page.
 export global Style {
     in property <[string]> targets;
@@ -146,6 +155,12 @@ export global Style {
     in-out property <string> title-font;
     in-out property <float> title-size;
     in-out property <bool> title-bold;
+    /// 0 left, 1 center, 2 right.
+    in-out property <int> title-align;
+    /// Fonts matching the last search of the font list.
+    in property <[FontItem]> fonts;
+    /// Index of `title-font` in `fonts`, -1 if absent.
+    in property <int> font-index: -1;
     /// 0 automatic, 1 white, 2 black, 3 custom (title-text-*).
     in-out property <int> title-color;
     in-out property <float> title-text-hue;
@@ -168,6 +183,7 @@ export global Style {
     callback preset(int);
     callback apply-to-all();
     callback reset();
+    callback search-fonts(string);
 }
 
 export struct RuleRow {

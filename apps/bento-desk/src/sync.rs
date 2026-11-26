@@ -197,8 +197,30 @@ pub fn apply_user_move(
     }
 }
 
+/// False when a user move would add an icon to, remove it from or reorder
+/// it inside a locked fence. The icon must then go back where it was.
+pub fn move_allowed(
+    layout: &Layout,
+    placed: &[Placed],
+    key: &str,
+    pos: Point,
+    desktop_spacing: Size,
+) -> bool {
+    let locked = |id: FenceId| layout.fence(id).is_some_and(|f| f.locked);
+    let source = layout
+        .pages
+        .iter()
+        .flat_map(|p| p.fences.iter())
+        .find(|f| f.contains_item(key));
+    if source.is_some_and(|f| f.locked) {
+        return false;
+    }
+    !fence_at(placed, pos, desktop_spacing).is_some_and(locked)
+}
+
 /// Fence that should receive a new desktop item: first matching rule,
-/// otherwise the fence under the place where Explorer put it.
+/// otherwise the fence under the place where Explorer put it. Locked
+/// fences receive nothing.
 pub fn fence_for_new_item(
     layout: &Layout,
     rules: &[Rule],
@@ -208,13 +230,14 @@ pub fn fence_for_new_item(
     desktop_spacing: Size,
     now: u64,
 ) -> Option<FenceId> {
+    let open = |id: FenceId| layout.fence(id).is_some_and(|f| !f.locked);
     if auto_rules
         && let Some(r) = first_match(rules, &item.info, now)
-        && layout.fence(r.target).is_some()
+        && open(r.target)
     {
         return Some(r.target);
     }
-    fence_at(placed, item.pos, desktop_spacing)
+    fence_at(placed, item.pos, desktop_spacing).filter(|id| open(*id))
 }
 
 /// Free grid slots on a work area, column by column from the top-left
@@ -367,6 +390,29 @@ mod tests {
         let t = targets(&inp);
         assert!(t.values().all(|p| p.x >= 1920));
         assert_eq!(t.len(), 3);
+    }
+
+    #[test]
+    fn locked_fence_keeps_its_icons() {
+        let mut locked = fence(1, &["a"]);
+        locked.locked = true;
+        let l = layout(vec![locked, fence(2, &["b"])]);
+        let pl = [
+            placed(1, Rect::from_xywh(0, 0, 400, 200)),
+            placed(2, Rect::from_xywh(500, 0, 400, 200)),
+        ];
+        // Out of the locked fence: refused.
+        assert!(!move_allowed(&l, &pl, "a", Point::new(900, 900), CELL));
+        assert!(!move_allowed(&l, &pl, "a", Point::new(510, 10), CELL));
+        // Into the locked fence: refused, from a fence or from the desktop.
+        assert!(!move_allowed(&l, &pl, "b", Point::new(10, 10), CELL));
+        assert!(!move_allowed(&l, &pl, "free", Point::new(10, 10), CELL));
+        // Elsewhere: allowed.
+        assert!(move_allowed(&l, &pl, "b", Point::new(900, 900), CELL));
+        assert!(move_allowed(&l, &pl, "free", Point::new(510, 10), CELL));
+        // New items never land in the locked fence.
+        let (_, it) = item("new", 10, 10);
+        assert_eq!(fence_for_new_item(&l, &[], false, &it, &pl, CELL, 0), None);
     }
 
     #[test]

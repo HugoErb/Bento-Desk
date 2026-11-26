@@ -9,12 +9,12 @@ use bento_core::display::geometry_to_px;
 use bento_core::geometry::{Point, Rect};
 use bento_core::grid::FrameMetrics;
 use bento_core::i18n::Msg;
-use bento_core::model::{Fence, ViewMode};
+use bento_core::model::{Fence, TitleAlign, ViewMode};
 use bento_render::fence::title_color;
 use bento_render::overlay::draw_peek_background;
 use bento_render::portal::{Entry, EntryLayout, draw_entries, layout};
 use bento_win::Hwnd;
-use bento_win::gfx::{RectF, Surface, TextStyle};
+use bento_win::gfx::{Align, RectF, Surface, TextStyle};
 use bento_win::window::{self, Kind, Message, OwnedWindow, msg};
 
 use crate::app::{App, CLASS_POPUP};
@@ -181,10 +181,21 @@ impl App {
                 let tint = opaque.tint.to_rgba();
                 c.fill_round_rect(r, f32::from(opaque.corner_radius) * sc, tint);
                 let fg = title_color(&opaque, tint);
-                let st = TextStyle::new(&opaque.title_font, f32::from(opaque.title_size) * sc, fg);
+                let mut st =
+                    TextStyle::new(&opaque.title_font, f32::from(opaque.title_size) * sc, fg);
+                st.align = match opaque.title_align {
+                    TitleAlign::Left => Align::Left,
+                    TitleAlign::Center => Align::Center,
+                    TitleAlign::Right => Align::Right,
+                };
                 c.text(
                     &f.title,
-                    RectF::new(r.left + 10.0 * sc, r.top, r.right, r.top + 30.0 * sc),
+                    RectF::new(
+                        r.left + 10.0 * sc,
+                        r.top,
+                        r.right - 10.0 * sc,
+                        r.top + 30.0 * sc,
+                    ),
                     &st,
                 );
                 let sel: Vec<usize> = selected

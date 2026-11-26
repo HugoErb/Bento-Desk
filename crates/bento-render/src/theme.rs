@@ -28,7 +28,7 @@ impl Theme {
             Theme {
                 dark,
                 accent,
-                surface: Rgba::new(0x2C, 0x2C, 0x2C, 0xF5),
+                surface: Rgba::rgb(0x2C, 0x2C, 0x2C),
                 surface_border: Rgba::new(255, 255, 255, 0x1F),
                 text: Rgba::rgb(0xFF, 0xFF, 0xFF),
                 text_secondary: Rgba::new(0xFF, 0xFF, 0xFF, 0xA8),
@@ -41,7 +41,7 @@ impl Theme {
             Theme {
                 dark,
                 accent,
-                surface: Rgba::new(0xF9, 0xF9, 0xF9, 0xF8),
+                surface: Rgba::rgb(0xF9, 0xF9, 0xF9),
                 surface_border: Rgba::new(0, 0, 0, 0x1A),
                 text: Rgba::rgb(0x1A, 0x1A, 0x1A),
                 text_secondary: Rgba::new(0, 0, 0, 0x9E),

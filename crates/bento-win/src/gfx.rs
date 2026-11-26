@@ -31,7 +31,7 @@ use windows::Win32::Graphics::DirectWrite::{
     DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING,
     DWRITE_TEXT_METRICS, DWRITE_TRIMMING, DWRITE_TRIMMING_GRANULARITY_CHARACTER,
     DWRITE_WORD_WRAPPING_NO_WRAP, DWRITE_WORD_WRAPPING_WRAP, DWriteCreateFactory, IDWriteFactory,
-    IDWriteTextFormat,
+    IDWriteFontFamily, IDWriteTextFormat,
 };
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
 use windows::Win32::Graphics::Gdi::{
@@ -150,6 +150,75 @@ struct FormatKey {
     align: Align,
     vcenter: bool,
     wrap: bool,
+}
+
+/// A font family installed on the system.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FontFamily {
+    /// Family name, in English when the font provides it: the name
+    /// DirectWrite resolves when it creates a text format.
+    pub name: String,
+    /// The glyphs are symbols, not letters (Wingdings, Marlett...).
+    pub symbol: bool,
+}
+
+/// Font families of the system collection, sorted by name, without
+/// duplicates.
+pub fn system_font_families() -> Result<Vec<FontFamily>> {
+    // SAFETY: shared DirectWrite factory.
+    let factory: IDWriteFactory =
+        unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) }.ctx("DWriteCreateFactory")?;
+    let mut collection = None;
+    // SAFETY: `collection` is a valid out pointer for the call.
+    unsafe { factory.GetSystemFontCollection(&mut collection, false) }
+        .ctx("GetSystemFontCollection")?;
+    let collection = collection.ok_or(WinError::NotFound("system font collection"))?;
+    // SAFETY: query on a valid collection.
+    let count = unsafe { collection.GetFontFamilyCount() };
+    let mut out = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        // SAFETY: the index is below the family count.
+        let Ok(family) = (unsafe { collection.GetFontFamily(i) }) else {
+            continue;
+        };
+        let Some(name) = family_name(&family) else {
+            continue;
+        };
+        // SAFETY: valid family; the arguments are valid enumeration values.
+        let font = unsafe {
+            family.GetFirstMatchingFont(
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+            )
+        };
+        // SAFETY: query on a valid font.
+        let symbol = font.is_ok_and(|f| unsafe { f.IsSymbolFont() }.as_bool());
+        out.push(FontFamily { name, symbol });
+    }
+    out.sort_by_cached_key(|f| f.name.to_lowercase());
+    out.dedup_by(|a, b| a.name.eq_ignore_ascii_case(&b.name));
+    Ok(out)
+}
+
+/// English name of a family, or its first name.
+fn family_name(family: &IDWriteFontFamily) -> Option<String> {
+    // SAFETY: valid family.
+    let names = unsafe { family.GetFamilyNames() }.ok()?;
+    let mut index = 0;
+    let mut exists = windows::core::BOOL(0);
+    // SAFETY: valid out pointers; the locale is a static NUL-terminated string.
+    unsafe { names.FindLocaleName(windows::core::w!("en-us"), &mut index, &mut exists) }.ok()?;
+    if !exists.as_bool() {
+        index = 0;
+    }
+    // SAFETY: the index is valid (found, or the first of a non-empty list).
+    let len = unsafe { names.GetStringLength(index) }.ok()?;
+    let mut buf = vec![0u16; len as usize + 1];
+    // SAFETY: the buffer holds the string and its terminating NUL.
+    unsafe { names.GetString(index, &mut buf) }.ok()?;
+    let name = crate::util::from_wide(&buf);
+    (!name.is_empty()).then_some(name)
 }
 
 /// Direct2D and DirectWrite factories plus caches. One per UI thread.

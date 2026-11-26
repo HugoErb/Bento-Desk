@@ -38,6 +38,37 @@ pub struct FrameDrag {
     pub start_rect: Rect,
 }
 
+/// Duration of the roll-up and unroll animation.
+const ROLL_ANIM_MS: f32 = 180.0;
+/// Delay between two animation frames.
+const ROLL_FRAME_MS: u32 = 15;
+
+/// Height animation between the rolled-up and the open rectangle. The top
+/// edge stays in place, the bottom edge moves.
+#[derive(Clone, Copy, Debug)]
+pub struct RollAnim {
+    from_bottom: i32,
+    start: std::time::Instant,
+}
+
+impl RollAnim {
+    fn progress(&self, now: std::time::Instant) -> f32 {
+        let ms = now.saturating_duration_since(self.start).as_secs_f32() * 1000.0;
+        (ms / ROLL_ANIM_MS).clamp(0.0, 1.0)
+    }
+
+    fn done(&self, now: std::time::Instant) -> bool {
+        self.progress(now) >= 1.0
+    }
+
+    /// Bottom edge at `now`, ease-out cubic towards `to`.
+    fn bottom(&self, to: i32, now: std::time::Instant) -> i32 {
+        let t = self.progress(now);
+        let e = 1.0 - (1.0 - t).powi(3);
+        self.from_bottom + ((to - self.from_bottom) as f32 * e).round() as i32
+    }
+}
+
 /// Style, tabs, active tab, title visibility and portal header of a frame.
 type FrameData = (FenceStyle, Vec<TabView>, usize, bool, Option<PortalHeader>);
 
@@ -65,6 +96,10 @@ pub struct FenceUi {
     pub monitor: String,
     pub rolled: bool,
     pub temp_open: bool,
+    /// Open state last shown, `None` before the first placement (no
+    /// animation when a fence appears).
+    shown_open: Option<bool>,
+    anim: Option<RollAnim>,
     pub hovered_frame: bool,
     pub hovered_body: bool,
     pub mouse: Option<Point>,
@@ -86,7 +121,9 @@ impl FenceUi {
 
     pub fn placed(&self) -> Placed {
         let m = FrameMetrics::for_dpi(self.dpi);
-        let open = !self.rolled || self.temp_open;
+        // Icons stay parked while the height animates; they are placed
+        // once the fence is fully open.
+        let open = (!self.rolled || self.temp_open) && self.anim.is_none();
         Placed {
             id: self.id,
             rect: self.rect,
@@ -243,6 +280,8 @@ impl App {
             monitor: mon.id,
             rolled: f.rolled_up,
             temp_open: false,
+            shown_open: None,
+            anim: None,
             hovered_frame: false,
             hovered_body: false,
             mouse: None,
@@ -281,6 +320,7 @@ impl App {
                     .count()
             })
             .unwrap_or(0);
+        let animate = self.config.rollup.animate;
         let ui = &mut self.fences[i];
         if let Some(m) = &mon {
             ui.dpi = m.dpi.max(96);
@@ -294,15 +334,67 @@ impl App {
         ui.portal = fence.active().is_some_and(|t| t.content.is_portal());
         ui.full_rect = full;
         let m = FrameMetrics::for_dpi(ui.dpi);
-        ui.rect = if ui.rolled && !ui.temp_open {
-            m.rolled(&full)
-        } else {
-            full
+        let open = !ui.rolled || ui.temp_open;
+        let target = if open { full } else { m.rolled(&full) };
+        let now = std::time::Instant::now();
+        let mut start_anim = false;
+        if !animate {
+            ui.anim = None;
+        } else if ui.shown_open.is_some_and(|o| o != open) {
+            // Starts from the height shown now, so a reversal mid-way is
+            // smooth too.
+            ui.anim = Some(RollAnim {
+                from_bottom: ui.rect.bottom,
+                start: now,
+            });
+            start_anim = true;
+        }
+        ui.shown_open = Some(open);
+        ui.rect = match ui.anim {
+            Some(a) => {
+                let bottom = a
+                    .bottom(target.bottom, now)
+                    .max(m.rolled(&full).bottom)
+                    .min(full.bottom);
+                Rect::new(target.left, target.top, target.right, bottom)
+            }
+            None => target,
         };
         let grid = Grid::new(m.body(&full), cell);
         ui.max_scroll = grid.max_scroll(present);
         ui.visible_rows = grid.visible_rows;
         ui.apply_rect();
+        if start_anim {
+            self.set_timer(Timer::RollAnim, ROLL_FRAME_MS);
+        }
+    }
+
+    /// Advances the roll-up animations by one frame.
+    pub fn step_roll_anims(&mut self) {
+        let now = std::time::Instant::now();
+        let (mut running, mut finished) = (false, false);
+        for i in 0..self.fences.len() {
+            let Some(a) = self.fences[i].anim else {
+                continue;
+            };
+            if a.done(now) {
+                self.fences[i].anim = None;
+                finished = true;
+            } else {
+                running = true;
+            }
+            self.update_fence_geometry(i);
+            self.render_backdrop(i);
+            self.render_frame(i);
+        }
+        if running {
+            self.set_timer(Timer::RollAnim, ROLL_FRAME_MS);
+        }
+        if finished {
+            // Icons go back into the fences that are now open.
+            self.update_hit_data();
+            self.relayout();
+        }
     }
 
     fn blur_for(&self, i: usize) -> Option<(&bento_core::image::Image, RectF)> {
@@ -544,21 +636,24 @@ impl App {
             msg::WM_MOUSEACTIVATE => return Some(msg::MA_NOACTIVATE),
             msg::WM_SETCURSOR => {
                 let p = self.fences[i].local_mouse(bento_win::input::cursor_pos());
+                let locked = self.fence_locked(i);
                 let cur = match self
                     .frame_layout(i)
                     .map(|l| l.hit(p, self.fences[i].portal))
                 {
-                    Some(FrameHit::Resize(e)) => match (e.left || e.right, e.top || e.bottom) {
-                        (true, true) => {
-                            if (e.left && e.top) || (e.right && e.bottom) {
-                                Cursor::SizeNwse
-                            } else {
-                                Cursor::SizeNesw
+                    Some(FrameHit::Resize(e)) if !locked => {
+                        match (e.left || e.right, e.top || e.bottom) {
+                            (true, true) => {
+                                if (e.left && e.top) || (e.right && e.bottom) {
+                                    Cursor::SizeNwse
+                                } else {
+                                    Cursor::SizeNesw
+                                }
                             }
+                            (true, false) => Cursor::SizeWe,
+                            _ => Cursor::SizeNs,
                         }
-                        (true, false) => Cursor::SizeWe,
-                        _ => Cursor::SizeNs,
-                    },
+                    }
                     _ => Cursor::Arrow,
                 };
                 window::set_cursor(cur);
@@ -583,10 +678,11 @@ impl App {
                     self.portal_press(i, local, screen);
                     return Some(0);
                 }
+                let locked = self.fence_locked(i);
                 let f = &mut self.fences[i];
                 f.drag = Some(FrameDrag {
                     kind: match hit {
-                        FrameHit::Resize(e) => DragKind::Resize(e),
+                        FrameHit::Resize(e) if !locked => DragKind::Resize(e),
                         other => DragKind::Pending(other),
                     },
                     start_mouse: screen,
@@ -635,6 +731,24 @@ impl App {
         Some(0)
     }
 
+    /// True when the item belongs to a locked fence of the current layout.
+    pub fn in_locked_fence(&self, key: &str) -> bool {
+        self.layout().is_some_and(|l| {
+            l.pages
+                .iter()
+                .flat_map(|p| p.fences.iter())
+                .any(|f| f.locked && f.contains_item(key))
+        })
+    }
+
+    /// Locked fences cannot be moved or resized.
+    fn fence_locked(&self, i: usize) -> bool {
+        let id = self.fences[i].id;
+        self.layout()
+            .and_then(|l| l.fence(id))
+            .is_some_and(|f| f.locked)
+    }
+
     fn on_frame_move(&mut self, i: usize, local: Point, screen: Point) {
         let f = &mut self.fences[i];
         if !f.hovered_frame {
@@ -659,8 +773,11 @@ impl App {
         let dx = screen.x - drag.start_mouse.x;
         let dy = screen.y - drag.start_mouse.y;
         let dpi = self.fences[i].dpi;
+        let locked = self.fence_locked(i);
         let kind = match drag.kind {
-            DragKind::Pending(FrameHit::Title | FrameHit::Tab(_)) if dx.abs() + dy.abs() > 4 => {
+            DragKind::Pending(FrameHit::Title | FrameHit::Tab(_))
+                if !locked && dx.abs() + dy.abs() > 4 =>
+            {
                 DragKind::Move
             }
             k => k,
@@ -1120,10 +1237,12 @@ impl App {
             return;
         };
         let p = unpack_point(lparam);
+        // A locked fence accepts no drop.
         let target = self
             .fences
             .iter()
-            .position(|f| f.visible && f.rect.contains(p));
+            .position(|f| f.visible && f.rect.contains(p))
+            .filter(|&i| !self.fence_locked(i));
         let tab_at = |app: &App, i: usize| -> Option<usize> {
             let l = app.frame_layout(i)?;
             let local = app.fences[i].local_mouse(p);
@@ -1179,9 +1298,10 @@ impl App {
                     return;
                 }
                 let id = self.fences[i].id;
+                // Icons of a locked fence stay in it.
                 let known: Vec<String> = keys
                     .into_iter()
-                    .filter(|k| self.items.contains_key(k))
+                    .filter(|k| self.items.contains_key(k) && !self.in_locked_fence(k))
                     .collect();
                 if known.is_empty() {
                     self.render_frame(i);
@@ -1208,5 +1328,30 @@ impl App {
                 self.relayout();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod roll_anim_tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn eases_from_start_to_target() {
+        let start = Instant::now();
+        let a = RollAnim {
+            from_bottom: 130,
+            start,
+        };
+        assert_eq!(a.bottom(330, start), 130);
+        let mid = a.bottom(330, start + Duration::from_millis(90));
+        // Ease-out: past the halfway point at half time.
+        assert!(mid > 230 && mid < 330, "{mid}");
+        assert!(!a.done(start + Duration::from_millis(90)));
+        let end = start + Duration::from_millis(ROLL_ANIM_MS as u64);
+        assert_eq!(a.bottom(330, end), 330);
+        assert!(a.done(end));
+        // Rolling up goes the other way.
+        assert_eq!(a.bottom(30, end), 30);
     }
 }

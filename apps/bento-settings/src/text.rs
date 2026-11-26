@@ -38,12 +38,12 @@ macro_rules! texts {
 
 texts! {
     WindowTitle => "Bento Desk - Paramètres", "Bento Desk - Settings";
-    DefaultStyle => "Style par défaut (toutes les fences)", "Default style (all fences)";
+    DefaultStyle => "Style par défaut (tous les Bentos)", "Default style (all Bentos)";
     PageIcons => "Page {} · {} icônes", "Page {} · {} icons";
     PageTabs => "Page {} · {} icônes · {} onglets", "Page {} · {} icons · {} tabs";
     Portal => "Page {} · portail : {}", "Page {} · portal: {}";
     Untitled => "(sans titre)", "(untitled)";
-    NoFence => "(aucune fence)", "(no fence)";
+    NoFence => "(aucun Bento)", "(no Bento)";
     NewRule => "Nouvelle règle", "New rule";
     NoCondition => "aucune condition", "no condition";
     And => " et ", " and ";
@@ -75,8 +75,8 @@ texts! {
     SnapSaved => "Snapshot enregistré.", "Snapshot saved.";
     SnapRestored => "Snapshot « {} » restauré.", "Snapshot \"{}\" restored.";
     SnapDeleted => "Snapshot supprimé.", "Snapshot deleted.";
-    SnapFences => "{} fences", "{} fences";
-    Swapped => "Fences des écrans échangées.", "Monitor fences swapped.";
+    SnapFences => "{} Bentos", "{} Bentos";
+    Swapped => "Bentos des écrans échangés.", "Monitor Bentos swapped.";
     Exported => "Export enregistré.", "Export saved.";
     Imported => "Import appliqué.", "Import applied.";
     ImportFailed => "Fichier illisible : {}", "Unreadable file: {}";
@@ -88,8 +88,9 @@ texts! {
     Started => "Bento Desk démarré.", "Bento Desk started.";
     StartFailed => "Impossible de démarrer Bento Desk.", "Cannot start Bento Desk.";
     Stopped => "Bento Desk arrêté.", "Bento Desk stopped.";
-    StyleAll => "Style appliqué à toutes les fences.", "Style applied to every fence.";
+    StyleAll => "Style appliqué à tous les Bentos.", "Style applied to every Bento.";
     ExportFilter => "Export Bento Desk (*.json)", "Bento Desk export (*.json)";
+    DefaultsRestored => "Valeurs par défaut rétablies.", "Defaults restored.";
 }
 
 #[cfg(test)]

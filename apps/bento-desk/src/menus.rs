@@ -48,6 +48,7 @@ pub enum FenceCmd {
     ResetStyle,
     Appearance,
     ToggleQuickHideExempt,
+    ToggleLock,
     MoveToPage(usize),
     MergeInto(FenceId),
     DetachTab,
@@ -227,7 +228,9 @@ impl App {
                     b.radio(t(Msg::SpacingWide), sp > 105, f(FenceCmd::Spacing(120))),
                 ];
                 items.push(MenuItem::submenu(t(Msg::FenceSpacing), spacing));
-                items.push(b.action(t(Msg::FenceFitContent), f(FenceCmd::FitContent)));
+                if !fence.locked {
+                    items.push(b.action(t(Msg::FenceFitContent), f(FenceCmd::FitContent)));
+                }
             }
             TabContent::Portal { view, .. } => {
                 items.push(b.radio(
@@ -271,6 +274,7 @@ impl App {
             fence.quick_hide_exempt,
             f(FenceCmd::ToggleQuickHideExempt),
         ));
+        items.push(b.check(t(Msg::FenceLock), fence.locked, f(FenceCmd::ToggleLock)));
         // Tabs.
         let others: Vec<(FenceId, String)> = self
             .layout()
@@ -278,19 +282,20 @@ impl App {
             .map(|p| {
                 p.fences
                     .iter()
-                    .filter(|o| o.id != id)
+                    .filter(|o| o.id != id && !o.locked)
                     .map(|o| (o.id, o.title().to_owned()))
                     .collect()
             })
             .unwrap_or_default();
-        if !others.is_empty() {
+        // A locked fence keeps its content: no merge, no detach.
+        if !fence.locked && !others.is_empty() {
             let merge = others
                 .into_iter()
                 .map(|(oid, title)| b.action(&title, f(FenceCmd::MergeInto(oid))))
                 .collect();
             items.push(MenuItem::submenu(t(Msg::TabMergeInto), merge));
         }
-        if fence.tabs.len() > 1 {
+        if !fence.locked && fence.tabs.len() > 1 {
             items.push(b.action(t(Msg::TabDetach), f(FenceCmd::DetachTab)));
         }
         // Pages.
@@ -318,6 +323,8 @@ impl App {
                     .danger(),
             ],
         ));
+        items.push(MenuItem::separator());
+        items.push(b.action(t(Msg::FenceOpenSettings), Command::OpenSettings));
         self.show_menu(items, b.commands, at);
     }
 
@@ -485,6 +492,15 @@ impl App {
                     f.quick_hide_exempt = !f.quick_hide_exempt;
                 }
                 self.mark_dirty();
+            }
+            FenceCmd::ToggleLock => {
+                if let Some(f) = self.layout_mut().and_then(|l| l.fence_mut(id)) {
+                    f.locked = !f.locked;
+                }
+                self.mark_dirty();
+                if let Some(i) = self.fences.iter().position(|f| f.id == id) {
+                    self.render_frame(i);
+                }
             }
             FenceCmd::MoveToPage(p) => {
                 if let Some(l) = self.layout_mut()

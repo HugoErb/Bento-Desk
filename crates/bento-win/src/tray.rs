@@ -21,6 +21,8 @@ pub struct TrayIcon {
     msg: u32,
     tip: String,
     added: bool,
+    /// The shell accepted NOTIFYICON_VERSION_4.
+    v4: bool,
 }
 
 /// Decoded tray callback (NOTIFYICON_VERSION_4).
@@ -67,6 +69,7 @@ impl TrayIcon {
             msg,
             tip: tip.to_owned(),
             added: false,
+            v4: false,
         };
         t.add();
         t
@@ -94,7 +97,7 @@ impl TrayIcon {
         unsafe {
             if Shell_NotifyIconW(NIM_ADD, &d).as_bool() {
                 self.added = true;
-                let _ = Shell_NotifyIconW(NIM_SETVERSION, &d);
+                self.v4 = Shell_NotifyIconW(NIM_SETVERSION, &d).as_bool();
             }
         }
     }
@@ -109,13 +112,29 @@ impl TrayIcon {
     }
 
     /// Decodes the callback `lparam` (low word = event).
-    pub fn decode(lparam: isize) -> TrayEvent {
-        match (lparam & 0xFFFF) as u32 {
-            0x0400 | 0x0202 => TrayEvent::Select, // NIN_SELECT, WM_LBUTTONUP
-            0x007B | 0x0205 => TrayEvent::Menu,   // WM_CONTEXTMENU, WM_RBUTTONUP
-            0x0203 => TrayEvent::DoubleClick,     // WM_LBUTTONDBLCLK
-            _ => TrayEvent::Other,
-        }
+    ///
+    /// With NOTIFYICON_VERSION_4 the shell sends WM_RBUTTONUP *and*
+    /// WM_CONTEXTMENU for one right click (WM_LBUTTONUP and NIN_SELECT for
+    /// a left click), so only one message of each pair is decoded:
+    /// opening the menu twice destroyed the first popup, the shell took the
+    /// foreground back and the second popup closed at once.
+    pub fn decode(&self, lparam: isize) -> TrayEvent {
+        decode_event((lparam & 0xFFFF) as u32, self.v4)
+    }
+}
+
+fn decode_event(event: u32, v4: bool) -> TrayEvent {
+    const NIN_SELECT: u32 = 0x0400;
+    const NIN_KEYSELECT: u32 = 0x0401;
+    const WM_CONTEXTMENU: u32 = 0x007B;
+    const WM_LBUTTONUP: u32 = 0x0202;
+    const WM_LBUTTONDBLCLK: u32 = 0x0203;
+    const WM_RBUTTONUP: u32 = 0x0205;
+    match (event, v4) {
+        (NIN_SELECT | NIN_KEYSELECT, true) | (WM_LBUTTONUP, false) => TrayEvent::Select,
+        (WM_CONTEXTMENU, true) | (WM_RBUTTONUP, false) => TrayEvent::Menu,
+        (WM_LBUTTONDBLCLK, _) => TrayEvent::DoubleClick,
+        _ => TrayEvent::Other,
     }
 }
 
@@ -128,5 +147,23 @@ impl Drop for TrayIcon {
                 let _ = Shell_NotifyIconW(NIM_DELETE, &d);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn one_event_per_click() {
+        // Version 4: right click = WM_RBUTTONUP then WM_CONTEXTMENU.
+        assert_eq!(decode_event(0x0205, true), TrayEvent::Other);
+        assert_eq!(decode_event(0x007B, true), TrayEvent::Menu);
+        assert_eq!(decode_event(0x0202, true), TrayEvent::Other);
+        assert_eq!(decode_event(0x0400, true), TrayEvent::Select);
+        // Legacy version: only the mouse messages.
+        assert_eq!(decode_event(0x0205, false), TrayEvent::Menu);
+        assert_eq!(decode_event(0x0202, false), TrayEvent::Select);
+        assert_eq!(decode_event(0x0203, false), TrayEvent::DoubleClick);
     }
 }

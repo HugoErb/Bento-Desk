@@ -9,7 +9,7 @@ use bento_core::color::Rgba;
 use bento_core::geometry::{Point, Rect, dip_to_px};
 use bento_core::grid::FrameMetrics;
 use bento_core::image::Image;
-use bento_core::model::{BackdropEffect, FenceStyle};
+use bento_core::model::{BackdropEffect, FenceStyle, TitleAlign};
 use bento_core::snap::Edges;
 use bento_win::gfx::{Align, Canvas, RectF, TextStyle};
 
@@ -233,6 +233,22 @@ fn button(c: &mut Canvas<'_>, r: Rect, glyph: &str, fg: Rgba, hovered: bool, dpi
     c.text(glyph, RectF::from(r), &st);
 }
 
+/// Area and alignment of a single title. A centered title is centered on
+/// the whole band, so the buttons on the right do not shift it.
+fn title_placement(l: &FrameLayout, align: TitleAlign) -> (Rect, Align) {
+    let t = l.title_text;
+    match align {
+        TitleAlign::Left => (t, Align::Left),
+        TitleAlign::Right => (t, Align::Right),
+        TitleAlign::Center => {
+            let inset = (t.left - l.title.left).max(l.title.right - t.right);
+            let left = l.title.left + inset;
+            let right = (l.title.right - inset).max(left);
+            (Rect::new(left, t.top, right, t.bottom), Align::Center)
+        }
+    }
+}
+
 /// Draws a frame. `hover` is the local cursor position when hovered.
 pub fn draw_frame(c: &mut Canvas<'_>, v: &FrameView<'_>, l: &FrameLayout, hover: Option<Point>) {
     let s = scale(v.dpi);
@@ -294,7 +310,10 @@ pub fn draw_frame(c: &mut Canvas<'_>, v: &FrameView<'_>, l: &FrameLayout, hover:
                 .get(v.active_tab)
                 .map(|t| t.title.as_str())
                 .unwrap_or("");
-            c.text(title_txt, RectF::from(l.title_text), &st);
+            let (area, align) = title_placement(l, v.style.title_align);
+            let mut ts = st.clone();
+            ts.align = align;
+            c.text(title_txt, RectF::from(area), &ts);
         } else {
             for (i, (r, t)) in l.tabs.iter().zip(&v.tabs).enumerate() {
                 let rf = RectF::from(*r);

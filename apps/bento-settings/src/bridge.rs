@@ -16,17 +16,19 @@ use bento_core::i18n::{Lang, LangPref};
 use bento_core::ipc::{COPYDATA_KIND, DAEMON_CLASS, IpcCmd};
 use bento_core::items::{ItemInfo, ItemKind};
 use bento_core::model::{
-    BackdropEffect, DesktopState, Fence, FenceId, FenceStyle, Layout, Snapshot, TitleMode, ViewMode,
+    BackdropEffect, DesktopState, Fence, FenceId, FenceStyle, Layout, Snapshot, TitleAlign,
+    TitleMode, ViewMode,
 };
 use bento_core::rules::{Condition, DateField, DateOp, Rule, TextOp};
 use bento_core::settings::{AppConfig, LogLevel, OpenTrigger};
+use bento_win::gfx::FontFamily;
 use bento_win::window::Hwnd;
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, TimerMode, VecModel, Weak};
 
 use crate::text::T;
 use crate::{
-    App, Cfg, ColorUtil, CondRow, Desk, FenceRow, Hsl, MainWindow, RuleRow, Rules, SnapRow, Snaps,
-    Style, Sys,
+    App, Cfg, ColorUtil, CondRow, Desk, FenceRow, FontItem, Hsl, MainWindow, RuleRow, Rules,
+    SnapRow, Snaps, Style, Sys,
 };
 
 const SAVE_DELAY: Duration = Duration::from_millis(300);
@@ -46,6 +48,8 @@ pub struct Ctl {
     /// Fence ids in the order of `Desk.fences`.
     fence_ids: Vec<FenceId>,
     snapshots: Vec<Snapshot>,
+    /// Installed font families, read on the first use of the font list.
+    fonts: Option<Vec<FontFamily>>,
     save_timer: Timer,
     style_timer: Timer,
     toast_timer: Timer,
@@ -66,6 +70,7 @@ impl Ctl {
             monitors: bento_win::display::monitors(),
             fence_ids: Vec::new(),
             snapshots: Vec::new(),
+            fonts: None,
             save_timer: Timer::default(),
             style_timer: Timer::default(),
             toast_timer: Timer::default(),
@@ -217,7 +222,7 @@ fn push_config(ui: &MainWindow, c: &AppConfig) {
         OpenTrigger::Hover => 1,
     });
     g.set_rollup_auto_docked(c.rollup.auto_rollup_docked);
-    g.set_qh_double_click(c.quick_hide.double_click);
+    g.set_rollup_animate(c.rollup.animate);
     g.set_qh_keep_free_icons(c.quick_hide.keep_free_icons);
     g.set_qh_idle_seconds(c.quick_hide.idle_seconds.min(3600) as i32);
     g.set_pages_enabled(c.pages.enabled);
@@ -274,7 +279,7 @@ fn pull_config(ui: &MainWindow, c: &mut AppConfig) {
         OpenTrigger::Click
     };
     c.rollup.auto_rollup_docked = g.get_rollup_auto_docked();
-    c.quick_hide.double_click = g.get_qh_double_click();
+    c.rollup.animate = g.get_rollup_animate();
     c.quick_hide.keep_free_icons = g.get_qh_keep_free_icons();
     c.quick_hide.idle_seconds = g.get_qh_idle_seconds().clamp(0, 3600) as u32;
     c.pages.enabled = g.get_pages_enabled();
@@ -518,6 +523,11 @@ fn push_style(ctl: &Ctl, ui: &MainWindow) {
     s.set_title_font(st.title_font.clone().into());
     s.set_title_size(f32::from(st.title_size));
     s.set_title_bold(st.title_bold);
+    s.set_title_align(match st.title_align {
+        TitleAlign::Left => 0,
+        TitleAlign::Center => 1,
+        TitleAlign::Right => 2,
+    });
     s.set_title_color(title_color_index(st.title_color));
     let (th, ts, tl) = rgba_hsl(st.title_color.unwrap_or(TITLE_WHITE));
     s.set_title_text_hue(th);
@@ -567,6 +577,11 @@ fn pull_style(ui: &MainWindow, base: &FenceStyle) -> FenceStyle {
     }
     st.title_size = clamp_u8(s.get_title_size()).clamp(8, 32);
     st.title_bold = s.get_title_bold();
+    st.title_align = match s.get_title_align() {
+        1 => TitleAlign::Center,
+        2 => TitleAlign::Right,
+        _ => TitleAlign::Left,
+    };
     st.title_color = match s.get_title_color() {
         1 => Some(TITLE_WHITE),
         2 => Some(TITLE_BLACK),
@@ -647,6 +662,71 @@ fn style_changed(ctl: &mut Ctl, ui: &MainWindow, weak: Weak<MainWindow>, shared:
                 });
         }
     }
+}
+
+/// Shows the installed fonts whose name contains `query` (any case).
+fn search_fonts(ctl: &mut Ctl, ui: &MainWindow, query: &str) {
+    let fonts = ctl.fonts.get_or_insert_with(|| {
+        bento_win::gfx::system_font_families().unwrap_or_else(|e| {
+            eprintln!("fonts: {e}");
+            Vec::new()
+        })
+    });
+    let q = query.trim().to_lowercase();
+    let items: Vec<FontItem> = fonts
+        .iter()
+        .filter(|f| q.is_empty() || f.name.to_lowercase().contains(&q))
+        .map(|f| FontItem {
+            name: f.name.as_str().into(),
+            symbol: f.symbol,
+        })
+        .collect();
+    let s = ui.global::<Style>();
+    let current = s.get_title_font();
+    let index = items
+        .iter()
+        .position(|f| f.name.eq_ignore_ascii_case(&current))
+        .map_or(-1, |i| i as i32);
+    s.set_fonts(model(items));
+    s.set_font_index(index);
+}
+
+// ----- defaults --------------------------------------------------------------
+
+/// Puts back the default values of the settings shown on one page (index
+/// of `App.page`). Data such as rules, layouts or the styles of single
+/// fences is kept. Returns false for a page without settings.
+fn reset_page(c: &mut AppConfig, page: i32) -> bool {
+    let d = AppConfig::default();
+    match page {
+        2 => c.appearance = d.appearance,
+        3 => c.layout = d.layout,
+        4 => {
+            c.rollup = d.rollup;
+            c.quick_hide = d.quick_hide;
+            c.hotkeys.quick_hide = d.hotkeys.quick_hide;
+        }
+        5 => {
+            c.pages = d.pages;
+            c.hotkeys.next_page = d.hotkeys.next_page;
+            c.hotkeys.prev_page = d.hotkeys.prev_page;
+        }
+        6 => c.sorting.auto_apply = d.sorting.auto_apply,
+        7 => c.portals = d.portals,
+        8 => {
+            c.peek = d.peek;
+            c.hotkeys.peek = d.hotkeys.peek;
+        }
+        9 => c.layouts = d.layouts,
+        10 => {
+            let log_level = c.general.log_level;
+            c.general = d.general;
+            c.general.log_level = log_level;
+        }
+        12 => c.general.log_level = d.general.log_level,
+        _ => return false,
+    }
+    true
 }
 
 // ----- rules -----------------------------------------------------------------
@@ -1025,6 +1105,21 @@ pub fn install_color_util(ui: &MainWindow) {
     });
 }
 
+/// Applies the language of the configuration to the whole window.
+fn language_changed(ctl: &mut Ctl, ui: &MainWindow) {
+    ctl.lang = ctl
+        .config
+        .general
+        .language
+        .resolve(bento_win::system::ui_language());
+    apply_language(ctl.lang);
+    ui.set_window_title(ctl.t(T::WindowTitle).into());
+    push_desk(ctl, ui);
+    push_style(ctl, ui);
+    push_rules(ctl, ui);
+    push_snaps(ctl, ui);
+}
+
 pub fn install(ui: &MainWindow, shared: &Shared) {
     // Runs `f` with the window and the state, if both are available.
     macro_rules! on {
@@ -1051,17 +1146,24 @@ pub fn install(ui: &MainWindow, shared: &Shared) {
         schedule_save(&ctl, weak, sh);
     });
     on!(Cfg, on_language_changed, |ui, ctl, weak, sh| {
-        ctl.lang = ctl
-            .config
-            .general
-            .language
-            .resolve(bento_win::system::ui_language());
-        apply_language(ctl.lang);
-        ui.set_window_title(ctl.t(T::WindowTitle).into());
-        push_desk(&mut ctl, &ui);
-        push_style(&ctl, &ui);
-        push_rules(&ctl, &ui);
-        push_snaps(&mut ctl, &ui);
+        language_changed(&mut ctl, &ui);
+    });
+    on!(Cfg, on_reset_page, |ui, ctl, weak, sh, page: i32| {
+        let language = ctl.config.general.language;
+        if !reset_page(&mut ctl.config, page) {
+            return;
+        }
+        push_config(&ui, &ctl.config);
+        if page == 2 {
+            // Show the default style that was just put back.
+            ui.global::<Style>().set_target(0);
+            push_style(&ctl, &ui);
+        }
+        if ctl.config.general.language != language {
+            language_changed(&mut ctl, &ui);
+        }
+        schedule_save(&ctl, weak, sh);
+        toast(&ctl, &ui, ctl.t(T::DefaultsRestored));
     });
     ui.global::<Cfg>()
         .on_capture(|text, ctrl, alt, shift, meta| {
@@ -1159,6 +1261,13 @@ pub fn install(ui: &MainWindow, shared: &Shared) {
         push_style(&ctl, &ui);
         toast(&ctl, &ui, ctl.t(T::StyleAll));
     });
+    on!(
+        Style,
+        on_search_fonts,
+        |ui, ctl, weak, sh, query: SharedString| {
+            search_fonts(&mut ctl, &ui, &query);
+        }
+    );
     on!(Style, on_reset, |ui, ctl, weak, sh| {
         match target_fence(&ctl, &ui) {
             None => {
@@ -1526,6 +1635,40 @@ fn refresh_status_later(ctl: &Ctl, weak: Weak<MainWindow>, sh: Shared) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn page_reset_keeps_data_and_other_pages() {
+        let mut c = AppConfig::default();
+        c.sorting.auto_apply = !c.sorting.auto_apply;
+        c.sorting.rules.push(Rule {
+            id: 1,
+            name: "Images".into(),
+            enabled: true,
+            match_all: true,
+            conditions: Vec::new(),
+            target: FenceId(3),
+        });
+        c.general.log_level = LogLevel::Debug;
+        c.general.show_in_taskbar = !c.general.show_in_taskbar;
+        c.layout.snap_gap = 42;
+        assert!(reset_page(&mut c, 6));
+        assert_eq!(
+            c.sorting.auto_apply,
+            AppConfig::default().sorting.auto_apply
+        );
+        assert_eq!(c.sorting.rules.len(), 1);
+        assert!(reset_page(&mut c, 10));
+        assert_eq!(
+            c.general.show_in_taskbar,
+            AppConfig::default().general.show_in_taskbar
+        );
+        assert_eq!(c.general.log_level, LogLevel::Debug);
+        assert_eq!(c.layout.snap_gap, 42);
+        assert!(reset_page(&mut c, 12));
+        assert_eq!(c.general.log_level, AppConfig::default().general.log_level);
+        assert!(!reset_page(&mut c, 0));
+        assert!(!reset_page(&mut c, 13));
+    }
 
     #[test]
     fn title_color_choices_round_trip() {

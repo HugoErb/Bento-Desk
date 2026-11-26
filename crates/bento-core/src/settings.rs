@@ -91,6 +91,9 @@ pub struct RollUp {
     pub open_on: OpenTrigger,
     /// Default value of the per-fence auto roll-up when docked.
     pub auto_rollup_docked: bool,
+    /// Smooth height animation when rolling up or unrolling, instead of an
+    /// instant change.
+    pub animate: bool,
 }
 
 impl Default for RollUp {
@@ -99,29 +102,18 @@ impl Default for RollUp {
             double_click_title: true,
             open_on: OpenTrigger::Click,
             auto_rollup_docked: false,
+            animate: true,
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct QuickHide {
-    /// Double-click on an empty desktop area toggles quick-hide.
-    pub double_click: bool,
     /// Icons outside fences stay visible.
     pub keep_free_icons: bool,
     /// Hide after this many seconds without desktop activity, 0 = off.
     pub idle_seconds: u32,
-}
-
-impl Default for QuickHide {
-    fn default() -> Self {
-        Self {
-            double_click: true,
-            keep_free_icons: false,
-            idle_seconds: 0,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

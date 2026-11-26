@@ -6,8 +6,8 @@ msgstr ""
 msgid "Home"
 msgstr "Accueil"
 
-msgid "Fences"
-msgstr "Fences"
+msgid "Bentos"
+msgstr "Bentos"
 
 msgid "Appearance"
 msgstr "Apparence"
@@ -45,11 +45,8 @@ msgstr "Dépannage"
 msgid "About"
 msgstr "À propos"
 
-msgid "Bento Desk settings"
-msgstr "Paramètres de Bento Desk"
-
-msgid "Organize your desktop icons into fences, without touching any other process."
-msgstr "Rangez les icônes du bureau dans des fences, sans toucher à aucun autre processus."
+msgid "Organize your desktop icons into Bentos, without touching any other process."
+msgstr "Rangez les icônes du bureau dans des Bentos, sans toucher à aucun autre processus."
 
 msgid "Running"
 msgstr "Actif"
@@ -57,8 +54,8 @@ msgstr "Actif"
 msgid "Not running"
 msgstr "Arrêté"
 
-msgid "{} fences on {} pages"
-msgstr "{} fences sur {} pages"
+msgid "{} Bentos on {} pages"
+msgstr "{} Bentos sur {} pages"
 
 msgid "Start Bento Desk"
 msgstr "Démarrer Bento Desk"
@@ -66,8 +63,8 @@ msgstr "Démarrer Bento Desk"
 msgid "Get started"
 msgstr "Prise en main"
 
-msgid "Create a fence"
-msgstr "Créer une fence"
+msgid "Create a Bento"
+msgstr "Créer un Bento"
 
 msgid "Hold the right mouse button on an empty desktop area and drag a rectangle, or use the tray icon menu."
 msgstr "Maintenez le bouton droit sur une zone vide du bureau et tracez un rectangle, ou utilisez le menu de l'icône de notification."
@@ -75,17 +72,17 @@ msgstr "Maintenez le bouton droit sur une zone vide du bureau et tracez un recta
 msgid "Move icons"
 msgstr "Déplacer des icônes"
 
-msgid "Drag desktop icons into a fence. Icons stay real desktop icons: open, rename and right-click work as usual."
-msgstr "Glissez les icônes du bureau dans une fence. Ce sont toujours de vraies icônes : ouverture, renommage et clic droit fonctionnent comme d'habitude."
+msgid "Drag desktop icons into a Bento. Icons stay real desktop icons: open, rename and right-click work as usual."
+msgstr "Glissez les icônes du bureau dans un Bento. Ce sont toujours de vraies icônes : ouverture, renommage et clic droit fonctionnent comme d'habitude."
 
-msgid "Roll up a fence"
-msgstr "Enrouler une fence"
+msgid "Roll up a Bento"
+msgstr "Enrouler un Bento"
 
 msgid "Double-click the title bar to keep only the title visible."
 msgstr "Double-cliquez sur la barre de titre pour ne garder que le titre visible."
 
-msgid "Press the Peek shortcut to show your fences above all windows."
-msgstr "Appuyez sur le raccourci Peek pour afficher vos fences au-dessus de toutes les fenêtres."
+msgid "Press the Peek shortcut to show your Bentos above all windows."
+msgstr "Appuyez sur le raccourci Peek pour afficher vos Bentos au-dessus de toutes les fenêtres."
 
 msgid "None"
 msgstr "Aucun"
@@ -93,14 +90,14 @@ msgstr "Aucun"
 msgid "Shortcuts"
 msgstr "Raccourcis"
 
-msgid "Manage fences"
-msgstr "Gérer les fences"
+msgid "Manage Bentos"
+msgstr "Gérer les Bentos"
 
-msgid "Fences of the current display layout. Click one to edit it."
-msgstr "Fences de la disposition d'écrans actuelle. Cliquez sur une fence pour la modifier."
+msgid "Bentos of the current display layout. Click one to edit it."
+msgstr "Bentos de la disposition d'écrans actuelle. Cliquez sur un Bento pour le modifier."
 
-msgid "No fence yet. Hold the right mouse button on the desktop and drag to create one."
-msgstr "Aucune fence pour l'instant. Maintenez le bouton droit sur le bureau et glissez pour en créer une."
+msgid "No Bento yet. Hold the right mouse button on the desktop and drag to create one."
+msgstr "Aucun Bento pour l'instant. Maintenez le bouton droit sur le bureau et glissez pour en créer un."
 
 msgid "(untitled)"
 msgstr "(sans titre)"
@@ -108,8 +105,8 @@ msgstr "(sans titre)"
 msgid "Custom style"
 msgstr "Style personnalisé"
 
-msgid "Selected fence"
-msgstr "Fence sélectionnée"
+msgid "Selected Bento"
+msgstr "Bento sélectionné"
 
 msgid "Title"
 msgstr "Titre"
@@ -118,16 +115,16 @@ msgid "Rename"
 msgstr "Renommer"
 
 msgid "Roll up when docked"
-msgstr "Enrouler quand elle est ancrée"
+msgstr "Enrouler quand il est ancré"
 
-msgid "Roll up automatically when the fence touches a screen edge."
-msgstr "S'enroule automatiquement quand la fence touche un bord de l'écran."
+msgid "Roll up automatically when the Bento touches a screen edge."
+msgstr "S'enroule automatiquement quand le Bento touche un bord de l'écran."
 
 msgid "Stay visible during quick-hide"
 msgstr "Rester visible pendant le masquage rapide"
 
-msgid "Appearance of this fence"
-msgstr "Apparence de cette fence"
+msgid "Appearance of this Bento"
+msgstr "Apparence de ce Bento"
 
 msgid "Color, transparency, title and corners."
 msgstr "Couleur, transparence, titre et coins."
@@ -141,8 +138,8 @@ msgstr "Les modifications s'appliquent immédiatement au bureau."
 msgid "Apply to"
 msgstr "Appliquer à"
 
-msgid "The default style is used by every fence without its own style."
-msgstr "Le style par défaut est utilisé par toutes les fences sans style propre."
+msgid "The default style is used by every Bento without its own style."
+msgstr "Le style par défaut est utilisé par tous les Bentos sans style propre."
 
 msgid "Use the default style"
 msgstr "Utiliser le style par défaut"
@@ -159,8 +156,8 @@ msgstr "Transparence"
 msgid "Background effect"
 msgstr "Effet de fond"
 
-msgid "Blur shows the wallpaper under the fence, softened."
-msgstr "Le flou montre le fond d'écran sous la fence, adouci."
+msgid "Blur shows the wallpaper under the Bento, softened."
+msgstr "Le flou montre le fond d'écran sous le Bento, adouci."
 
 msgid "Solid color"
 msgstr "Couleur unie"
@@ -171,8 +168,8 @@ msgstr "Flou"
 msgid "Chameleon"
 msgstr "Caméléon"
 
-msgid "Adapt the color to the wallpaper under the fence."
-msgstr "Adapte la couleur au fond d'écran sous la fence."
+msgid "Adapt the color to the wallpaper under the Bento."
+msgstr "Adapte la couleur au fond d'écran sous le Bento."
 
 msgid "Show the title"
 msgstr "Afficher le titre"
@@ -216,8 +213,8 @@ msgstr "Arrondi des coins"
 msgid "Border"
 msgstr "Bordure"
 
-msgid "Apply this style to every fence"
-msgstr "Appliquer ce style à toutes les fences"
+msgid "Apply this style to every Bento"
+msgstr "Appliquer ce style à tous les Bentos"
 
 msgid "Reset"
 msgstr "Réinitialiser"
@@ -234,26 +231,26 @@ msgstr "Les surbrillances suivent la couleur d'accentuation de Windows."
 msgid "Layout and magnetism"
 msgstr "Disposition et magnétisme"
 
-msgid "How fences snap while they are moved or resized."
-msgstr "Comment les fences s'aimantent pendant un déplacement ou un redimensionnement."
+msgid "How Bentos snap while they are moved or resized."
+msgstr "Comment les Bentos s'aimantent pendant un déplacement ou un redimensionnement."
 
 msgid "Snap to screen edges"
 msgstr "Aimanter aux bords de l'écran"
 
-msgid "Snap to other fences"
-msgstr "Aimanter aux autres fences"
+msgid "Snap to other Bentos"
+msgstr "Aimanter aux autres Bentos"
 
 msgid "Snap distance"
 msgstr "Distance d'aimantation"
 
-msgid "Gap between snapped fences"
-msgstr "Écart entre fences aimantées"
+msgid "Gap between snapped Bentos"
+msgstr "Écart entre Bentos aimantés"
 
 msgid "Icons"
 msgstr "Icônes"
 
-msgid "Icon spacing in fences"
-msgstr "Espacement des icônes dans les fences"
+msgid "Icon spacing in Bentos"
+msgstr "Espacement des icônes dans les Bentos"
 
 msgid "Percentage of the desktop icon spacing."
 msgstr "Pourcentage de l'espacement des icônes du bureau."
@@ -264,32 +261,26 @@ msgstr "Enroulement"
 msgid "Double-click the title to roll up"
 msgstr "Double-cliquer sur le titre pour enrouler"
 
-msgid "Open a rolled-up fence"
-msgstr "Ouvrir une fence enroulée"
+msgid "Open a rolled-up Bento"
+msgstr "Ouvrir un Bento enroulé"
 
-msgid "The fence opens until the mouse leaves it."
-msgstr "La fence s'ouvre jusqu'à ce que la souris la quitte."
+msgid "The Bento opens until the mouse leaves it."
+msgstr "Le Bento s'ouvre jusqu'à ce que la souris le quitte."
 
 msgid "On click"
 msgstr "Au clic"
 
-msgid "Roll up new docked fences"
-msgstr "Enrouler les nouvelles fences ancrées"
+msgid "Roll up new docked Bentos"
+msgstr "Enrouler les nouveaux Bentos ancrés"
 
-msgid "Default value for fences docked to a screen edge."
-msgstr "Valeur par défaut pour les fences ancrées à un bord de l'écran."
+msgid "Default value for Bentos docked to a screen edge."
+msgstr "Valeur par défaut pour les Bentos ancrés à un bord de l'écran."
 
 msgid "Quick-hide"
 msgstr "Masquage rapide"
 
-msgid "Double-click the desktop to hide icons"
-msgstr "Double-cliquer sur le bureau pour masquer les icônes"
-
-msgid "Double-click again to show them."
-msgstr "Double-cliquez à nouveau pour les afficher."
-
-msgid "Keep icons outside fences visible"
-msgstr "Garder visibles les icônes hors des fences"
+msgid "Keep icons outside Bentos visible"
+msgstr "Garder visibles les icônes hors des Bentos"
 
 msgid "Hide after inactivity"
 msgstr "Masquer après inactivité"
@@ -303,8 +294,8 @@ msgstr "Raccourci du masquage rapide"
 msgid "Desktop pages"
 msgstr "Pages du bureau"
 
-msgid "Several sets of fences on the same desktop, one page at a time."
-msgstr "Plusieurs ensembles de fences sur le même bureau, une page à la fois."
+msgid "Several sets of Bentos on the same desktop, one page at a time."
+msgstr "Plusieurs ensembles de Bentos sur le même bureau, une page à la fois."
 
 msgid "Enable pages"
 msgstr "Activer les pages"
@@ -384,8 +375,8 @@ msgstr "jours"
 msgid "Remove"
 msgstr "Retirer"
 
-msgid "New desktop icons go to the fence of the first matching rule. Rules are checked from top to bottom."
-msgstr "Les nouvelles icônes du bureau vont dans la fence de la première règle qui correspond. Les règles sont vérifiées de haut en bas."
+msgid "New desktop icons go to the Bento of the first matching rule. Rules are checked from top to bottom."
+msgstr "Les nouvelles icônes du bureau vont dans le Bento de la première règle qui correspond. Les règles sont vérifiées de haut en bas."
 
 msgid "Apply rules to new icons"
 msgstr "Appliquer les règles aux nouvelles icônes"
@@ -393,8 +384,8 @@ msgstr "Appliquer les règles aux nouvelles icônes"
 msgid "Sort the whole desktop now"
 msgstr "Trier tout le bureau maintenant"
 
-msgid "Applies the rules to every icon of the desktop, including icons already in fences."
-msgstr "Applique les règles à toutes les icônes du bureau, y compris celles déjà dans des fences."
+msgid "Applies the rules to every icon of the desktop, including icons already in Bentos."
+msgstr "Applique les règles à toutes les icônes du bureau, y compris celles déjà dans des Bentos."
 
 msgid "Sort now"
 msgstr "Trier"
@@ -423,8 +414,8 @@ msgstr "Supprimer"
 msgid "Edit the rule"
 msgstr "Modifier la règle"
 
-msgid "Destination fence"
-msgstr "Fence de destination"
+msgid "Destination Bento"
+msgstr "Bento de destination"
 
 msgid "Conditions"
 msgstr "Conditions"
@@ -444,8 +435,8 @@ msgstr "Tester la règle"
 msgid "Test"
 msgstr "Tester"
 
-msgid "A portal shows the content of any folder inside a fence. Create one from the tray icon menu or from a fence menu."
-msgstr "Un portail affiche le contenu de n'importe quel dossier dans une fence. Créez-en un depuis le menu de l'icône de notification ou le menu d'une fence."
+msgid "A portal shows the content of any folder inside a Bento. Create one from the tray icon menu or from a Bento menu."
+msgstr "Un portail affiche le contenu de n'importe quel dossier dans un Bento. Créez-en un depuis le menu de l'icône de notification ou le menu d'un Bento."
 
 msgid "Default view"
 msgstr "Affichage par défaut"
@@ -459,8 +450,8 @@ msgstr "Masquer l'icône du dossier dans le titre"
 msgid "Show hidden files"
 msgstr "Afficher les fichiers cachés"
 
-msgid "Shows your fences above all windows. Click an item to open it, Escape to close."
-msgstr "Affiche vos fences au-dessus de toutes les fenêtres. Cliquez sur un élément pour l'ouvrir, Échap pour fermer."
+msgid "Shows your Bentos above all windows. Click an item to open it, Escape to close."
+msgstr "Affiche vos Bentos au-dessus de toutes les fenêtres. Cliquez sur un élément pour l'ouvrir, Échap pour fermer."
 
 msgid "Peek shortcut"
 msgstr "Raccourci Peek"
@@ -477,8 +468,8 @@ msgstr "Bento Desk garde une disposition par configuration d'écrans. Un snapsho
 msgid "Restore the layout of each display configuration"
 msgstr "Restaurer la disposition de chaque configuration d'écrans"
 
-msgid "When monitors are plugged or unplugged, fences go back to where they were for that configuration."
-msgstr "Quand des écrans sont branchés ou débranchés, les fences reprennent leur place pour cette configuration."
+msgid "When monitors are plugged or unplugged, Bentos go back to where they were for that configuration."
+msgstr "Quand des écrans sont branchés ou débranchés, les Bentos reprennent leur place pour cette configuration."
 
 msgid "Current layout"
 msgstr "Disposition actuelle"
@@ -504,8 +495,8 @@ msgstr "Restaurer"
 msgid "Monitors"
 msgstr "Écrans"
 
-msgid "Swap the fences of two monitors"
-msgstr "Échanger les fences de deux écrans"
+msgid "Swap the Bentos of two monitors"
+msgstr "Échanger les Bentos de deux écrans"
 
 msgid "Swap"
 msgstr "Échanger"
@@ -531,8 +522,8 @@ msgstr "Ajoute un bouton dans la barre des tâches, utile avec certains docks et
 msgid "Desktop gestures"
 msgstr "Gestes sur le bureau"
 
-msgid "Draw a fence with the right button, double-click to hide icons, scroll fences with the wheel. Uses a mouse hook only while the desktop is in the foreground."
-msgstr "Tracer une fence au bouton droit, double-cliquer pour masquer les icônes, faire défiler les fences à la molette. Utilise un hook souris uniquement quand le bureau est au premier plan."
+msgid "Draw a Bento with the right button, scroll Bentos with the wheel. Uses a mouse hook only while the desktop is in the foreground."
+msgstr "Tracer un Bento au bouton droit, faire défiler les Bentos à la molette. Utilise un hook souris uniquement quand le bureau est au premier plan."
 
 msgid "Game mode"
 msgstr "Mode jeu"
@@ -546,8 +537,8 @@ msgstr "Arrête le hook souris et toute tâche de fond pendant qu'un jeu ou une 
 msgid "Pause while these programs are in the foreground (one executable name per line):"
 msgstr "Pause quand ces programmes sont au premier plan (un nom d'exécutable par ligne) :"
 
-msgid "One file holds the settings, the fences of every layout and the snapshots."
-msgstr "Un seul fichier contient les paramètres, les fences de toutes les dispositions et les snapshots."
+msgid "One file holds the settings, the Bentos of every layout and the snapshots."
+msgstr "Un seul fichier contient les paramètres, les Bentos de toutes les dispositions et les snapshots."
 
 msgid "Export"
 msgstr "Exporter"
@@ -561,8 +552,8 @@ msgstr "Exporter..."
 msgid "Import"
 msgstr "Importer"
 
-msgid "Replace the current settings and fences with a file. The desktop is rebuilt at once."
-msgstr "Remplacer les paramètres et les fences actuels par un fichier. Le bureau est reconstruit immédiatement."
+msgid "Replace the current settings and Bentos with a file. The desktop is rebuilt at once."
+msgstr "Remplacer les paramètres et les Bentos actuels par un fichier. Le bureau est reconstruit immédiatement."
 
 msgid "Import..."
 msgstr "Importer..."
@@ -666,5 +657,35 @@ msgstr "Personnalisée"
 msgid "Title background"
 msgstr "Fond du titre"
 
-msgid "Automatic: the fence color, slightly darkened."
-msgstr "Automatique : couleur de la fence, légèrement assombrie."
+msgid "Automatic: the Bento color, slightly darkened."
+msgstr "Automatique : couleur du Bento, légèrement assombrie."
+
+msgid "Animate rolling up"
+msgstr "Animer l'enroulement"
+
+msgid "The height changes smoothly. Off: the change is instant."
+msgstr "La hauteur change en douceur. Désactivé : le changement est instantané."
+
+msgid "Restore defaults"
+msgstr "Rétablir les valeurs par défaut"
+
+msgid "Restore the default values of the settings of this page?"
+msgstr "Rétablir les valeurs par défaut des paramètres de cette page ?"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Search a font"
+msgstr "Rechercher une police"
+
+msgid "Alignment"
+msgstr "Alignement"
+
+msgid "Left"
+msgstr "Gauche"
+
+msgid "Center"
+msgstr "Centre"
+
+msgid "Right"
+msgstr "Droite"

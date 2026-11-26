@@ -1,8 +1,8 @@
 // Building blocks of the pages: cards, headers, navigation items, the
 // shortcut recorder and the fence preview.
 
-import { Theme, Cfg, ColorUtil } from "globals.slint";
-import { ScrollView, LineEdit } from "std-widgets.slint";
+import { Theme, Cfg, ColorUtil, FontItem } from "globals.slint";
+import { ScrollView, LineEdit, ListView, Button } from "std-widgets.slint";
 
 /// MDL2 glyph.
 export component Glyph inherits Text {
@@ -14,18 +14,83 @@ export component Glyph inherits Text {
     accessible-role: none;
 }
 
-/// Page title.
+/// Button that puts back the default values of a page, after a
+/// confirmation shown under it.
+component ResetDefaults inherits VerticalLayout {
+    in property <int> page;
+    alignment: center;
+    Button {
+        text: @tr("Restore defaults");
+        clicked => {
+            confirm.show();
+        }
+    }
+
+    confirm := PopupWindow {
+        x: root.width - self.width;
+        y: root.height + 6px;
+        width: 340px;
+        close-policy: PopupClosePolicy.close-on-click-outside;
+        Rectangle {
+            background: Theme.card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Theme.divider;
+            drop-shadow-blur: 16px;
+            drop-shadow-color: #00000040;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 14px;
+                Text {
+                    text: @tr("Restore the default values of the settings of this page?");
+                    color: Theme.text;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 8px;
+                    Button {
+                        text: @tr("Cancel");
+                        clicked => {
+                            confirm.close();
+                        }
+                    }
+                    Button {
+                        text: @tr("Restore");
+                        primary: true;
+                        clicked => {
+                            confirm.close();
+                            Cfg.reset-page(root.page);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Page title. With `reset-page` set, a button puts back the defaults of
+/// that page.
 export component PageHeader inherits VerticalLayout {
     in property <string> title;
     in property <string> subtitle;
+    in property <int> reset-page: -1;
     padding-bottom: 12px;
     spacing: 4px;
-    Text {
-        text: root.title;
-        font-size: 28px;
-        font-weight: 600;
-        color: Theme.text;
-        accessible-role: text;
+    HorizontalLayout {
+        spacing: 12px;
+        Text {
+            text: root.title;
+            font-size: 28px;
+            font-weight: 600;
+            color: Theme.text;
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+            accessible-role: text;
+        }
+        if root.reset-page >= 0: ResetDefaults {
+            page: root.reset-page;
+        }
     }
     if root.subtitle != "": Text {
         text: root.subtitle;
@@ -240,15 +305,147 @@ export component HotkeyField inherits Rectangle {
     }
 }
 
+/// Drop-down list of the installed fonts, each name written in its own
+/// font. A search field at the top filters the list.
+export component FontPicker inherits Rectangle {
+    in property <[FontItem]> fonts;
+    /// Index of `value` in `fonts`, to scroll to it when the list opens.
+    in property <int> current-index: -1;
+    in-out property <string> value;
+    callback search(string);
+    callback picked();
+    private property <length> row-height: 36px;
+    width: 260px;
+    height: 32px;
+    border-radius: 4px;
+    background: ta.has-hover ? Theme.subtle2 : Theme.subtle;
+    border-width: 1px;
+    border-color: Theme.divider;
+    accessible-role: combobox;
+    accessible-label: @tr("Font");
+    accessible-value: root.value;
+    accessible-action-default => {
+        root.open();
+    }
+
+    function open() {
+        root.search("");
+        list.show();
+    }
+
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => {
+            root.open();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 8px;
+        spacing: 6px;
+        Text {
+            text: root.value;
+            font-family: root.value;
+            color: Theme.text;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+        Glyph {
+            text: "\u{E70D}";
+            font-size: 10px;
+            width: 16px;
+        }
+    }
+
+    list := PopupWindow {
+        x: 0;
+        y: root.height + 4px;
+        width: max(root.width, 320px);
+        height: 380px;
+        close-policy: PopupClosePolicy.close-on-click-outside;
+        Rectangle {
+            background: Theme.card;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Theme.divider;
+            drop-shadow-blur: 16px;
+            drop-shadow-color: #00000040;
+            VerticalLayout {
+                padding: 6px;
+                spacing: 6px;
+                LineEdit {
+                    placeholder-text: @tr("Search a font");
+                    init => {
+                        self.focus();
+                    }
+                    edited(t) => {
+                        root.search(t);
+                        fonts-view.content-y = 0;
+                    }
+                }
+                fonts-view := ListView {
+                    init => {
+                        if (root.current-index >= 0) {
+                            self.content-y = -max(0, root.current-index * root.row-height - (self.visible-height - root.row-height) / 2);
+                        }
+                    }
+                    for f in root.fonts: Rectangle {
+                        height: root.row-height;
+                        border-radius: 4px;
+                        background: f.name == root.value ? Theme.subtle2 : (row.has-hover ? Theme.subtle : transparent);
+                        accessible-role: list-item;
+                        accessible-label: f.name;
+                        row := TouchArea {
+                            mouse-cursor: MouseCursor.pointer;
+                            clicked => {
+                                root.value = f.name;
+                                root.picked();
+                                list.close();
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            spacing: 12px;
+                            Text {
+                                text: f.name;
+                                font-family: f.symbol ? "" : f.name;
+                                font-size: 15px;
+                                color: Theme.text;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                                overflow: elide;
+                            }
+                            if f.symbol: Text {
+                                text: "AaBbCc";
+                                font-family: f.name;
+                                font-size: 15px;
+                                color: Theme.text2;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Fence drawn over a sample wallpaper, for the Appearance page.
 export component FencePreview inherits Rectangle {
     in property <color> fill;
     in property <color> text-color;
     in property <color> title-fill: #00000026;
     in property <string> title;
+    in property <string> font;
     in property <int> title-mode;
     in property <length> title-size;
     in property <bool> bold;
+    /// 0 left, 1 center, 2 right.
+    in property <int> title-align;
     in property <length> radius;
     in property <bool> border;
     in property <bool> blur;
@@ -292,11 +489,15 @@ export component FencePreview inherits Rectangle {
                 height: 32px;
                 background: root.title-fill;
                 Text {
+                    x: 10px;
+                    width: parent.width - 20px;
                     text: root.title;
                     color: root.text-color;
+                    font-family: root.font;
                     font-size: root.title-size;
                     font-weight: root.bold ? 700 : 400;
-                    horizontal-alignment: center;
+                    overflow: elide;
+                    horizontal-alignment: root.title-align == 1 ? TextHorizontalAlignment.center : root.title-align == 2 ? TextHorizontalAlignment.right : TextHorizontalAlignment.left;
                     vertical-alignment: center;
                     opacity: root.title-mode == 1 ? 0.55 : 1;
                 }

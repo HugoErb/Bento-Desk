@@ -35,6 +35,16 @@ pub enum TitleMode {
     Always,
 }
 
+/// Horizontal position of the title in the title band.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TitleAlign {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
 /// How the fence background is rendered.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -59,6 +69,7 @@ pub struct FenceStyle {
     /// Title font size in DIP.
     pub title_size: u8,
     pub title_bold: bool,
+    pub title_align: TitleAlign,
     /// `None` = automatic contrast with the background.
     pub title_color: Option<Rgba>,
     /// Background of the title band. `None` = the fence color, slightly
@@ -79,6 +90,7 @@ impl Default for FenceStyle {
             title_font: "Segoe UI Variable Text".to_owned(),
             title_size: 13,
             title_bold: false,
+            title_align: TitleAlign::Left,
             title_color: None,
             title_background: None,
             corner_radius: 8,
@@ -205,6 +217,8 @@ pub struct Fence {
     pub auto_rollup: bool,
     /// Stays visible during quick-hide.
     pub quick_hide_exempt: bool,
+    /// Cannot be moved or resized, and icons cannot be added or removed.
+    pub locked: bool,
 }
 
 impl Fence {
@@ -448,6 +462,7 @@ mod tests {
         // Older files without the field keep loading.
         let old: FenceStyle = serde_json::from_str(r#"{"title_bold":true}"#).unwrap();
         assert_eq!(old.title_background, None);
+        assert_eq!(old.title_align, TitleAlign::Left);
     }
 
     #[test]

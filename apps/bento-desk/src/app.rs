@@ -63,6 +63,7 @@ pub enum Timer {
     Collapse = 8,
     Refresh = 9,
     Startup = 10,
+    RollAnim = 11,
 }
 
 impl Timer {
@@ -78,6 +79,7 @@ impl Timer {
             8 => Timer::Collapse,
             9 => Timer::Refresh,
             10 => Timer::Startup,
+            11 => Timer::RollAnim,
             _ => return None,
         })
     }
@@ -799,10 +801,28 @@ impl App {
             let moved = sync::moved_by_user(&self.expected, &self.items);
             let spacing = self.spacing;
             let pct = self.config.layout.icon_spacing;
+            let mut back = Vec::new();
             for (key, pos) in moved {
+                let allowed = self
+                    .state
+                    .layout(&self.layout_key)
+                    .is_none_or(|l| sync::move_allowed(l, &placed, &key, pos, spacing));
+                if !allowed {
+                    // Locked fence: the icon returns where it was.
+                    if let Some(old) = self.expected.get(&key).copied()
+                        && let Some(it) = self.items.get_mut(&key)
+                    {
+                        it.pos = old;
+                        back.push((key, old));
+                    }
+                    continue;
+                }
                 if let Some(l) = self.state.layout_mut(&self.layout_key) {
                     changed |= sync::apply_user_move(l, &placed, &key, pos, spacing, pct);
                 }
+            }
+            if !back.is_empty() {
+                self.worker.send(Cmd::Move(back));
             }
         }
         if changed {
@@ -1067,12 +1087,6 @@ impl App {
         {
             *self.state.open_counts.entry(k.clone()).or_insert(0) += 1;
             self.mark_dirty();
-            return;
-        }
-        let in_fence = self.fences.iter().any(|f| f.visible && f.rect.contains(p));
-        if !in_fence && self.config.quick_hide.double_click {
-            let hide = !self.quick_hidden;
-            self.set_quick_hide(hide);
         }
     }
 
@@ -1283,7 +1297,11 @@ impl App {
             WM_WORKER => self.on_worker(),
             WM_HOOK => self.on_hook(m.wparam, m.lparam),
             WM_FOREGROUND => self.on_foreground_change(Hwnd(m.wparam as isize)),
-            WM_TRAY => match TrayIcon::decode(m.lparam) {
+            WM_TRAY => match self
+                .tray
+                .as_ref()
+                .map_or(TrayEvent::Other, |t| t.decode(m.lparam))
+            {
                 TrayEvent::Menu => self.show_tray_menu(),
                 TrayEvent::Select | TrayEvent::DoubleClick => self.open_settings(None),
                 TrayEvent::Other => {}
@@ -1426,6 +1444,7 @@ impl App {
             Timer::Overlay => self.overlay = None,
             Timer::Collapse => self.check_collapse(),
             Timer::Startup => {}
+            Timer::RollAnim => self.step_roll_anims(),
         }
     }
 
@@ -1618,6 +1637,7 @@ impl App {
                 continue;
             };
             if let Some(f) = self.layout_mut().and_then(|l| l.fence_mut(r.target))
+                && !f.locked
                 && let Some(t) = f.active_mut()
                 && let Some(list) = t.content.desktop_items_mut()
             {
