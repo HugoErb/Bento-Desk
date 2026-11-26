@@ -5,6 +5,7 @@
 fn main() {
     println!("cargo:rerun-if-changed=res/settings.rc");
     println!("cargo:rerun-if-changed=res/app.manifest");
+    println!("cargo:rerun-if-changed=../../assets/bento.ico");
     println!("cargo:rerun-if-changed=lang");
     let config = slint_build::CompilerConfiguration::new()
         .with_style("fluent".into())
