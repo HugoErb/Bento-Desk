@@ -393,15 +393,19 @@ pub struct BackdropView<'a> {
 /// Draws a background: blurred wallpaper (optional), tint, border.
 pub fn draw_backdrop(c: &mut Canvas<'_>, v: &BackdropView<'_>) {
     let s = scale(v.dpi);
-    let r = RectF::xywh(0.0, 0.0, v.width as f32, v.height as f32).inset(0.5);
+    // Fills cover the whole window so that two snapped fences, or a fence and
+    // a screen edge, meet without a half-transparent seam. Strokes stay
+    // centred on the outermost pixel.
+    let full = RectF::xywh(0.0, 0.0, v.width as f32, v.height as f32);
+    let r = full.inset(0.5);
     let radius = f32::from(v.style.corner_radius) * s;
     if v.style.effect == BackdropEffect::Blur
         && let Some((img, at)) = v.blur
     {
-        c.fill_round_rect_image(r, radius, img, at, 1.0);
+        c.fill_round_rect_image(full, radius, img, at, 1.0);
     }
     let tint = v.tint.unwrap_or_else(|| v.style.tint.to_rgba());
-    c.fill_round_rect(r, radius, tint);
+    c.fill_round_rect(full, radius, tint);
     if v.style.border {
         let border = if tint.with_alpha(255).luminance() > 0.5 {
             Rgba::new(0, 0, 0, 0x30)
