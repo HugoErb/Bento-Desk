@@ -48,6 +48,8 @@ pub const WM_DRAG: u32 = msg::WM_APP + 6;
 pub const WM_LISTING: u32 = msg::WM_APP + 8;
 pub const WM_FOREGROUND: u32 = msg::WM_APP + 9;
 pub const WM_WALLPAPER: u32 = msg::WM_APP + 10;
+/// One per screen refresh while an animation runs (see [`App::start_frames`]).
+pub const WM_FRAME: u32 = msg::WM_APP + 11;
 
 /// Timers of the main window. None of them repeats while the app is idle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,7 +65,8 @@ pub enum Timer {
     Collapse = 8,
     Refresh = 9,
     Startup = 10,
-    RollAnim = 11,
+    /// Animation frames when the pacer thread is unavailable.
+    Frame = 11,
 }
 
 impl Timer {
@@ -79,7 +82,7 @@ impl Timer {
             8 => Timer::Collapse,
             9 => Timer::Refresh,
             10 => Timer::Startup,
-            11 => Timer::RollAnim,
+            11 => Timer::Frame,
             _ => return None,
         })
     }
@@ -205,6 +208,8 @@ pub struct App {
     pub paused: bool,
     pub style_clip: Option<FenceStyle>,
     pub blur: HashMap<String, Image>,
+    /// Frame messages on the screen refresh, for animations.
+    pacer: Option<bento_win::vsync::Pacer>,
     pub listing_tx: Sender<Listing>,
     listing_rx: Receiver<Listing>,
     wallpaper_tx: Sender<Vec<(String, Image)>>,
@@ -282,6 +287,13 @@ impl App {
             paused: false,
             style_clip: None,
             blur: HashMap::new(),
+            pacer: match bento_win::vsync::Pacer::start(hwnd, WM_FRAME) {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    tracing::warn!("vsync thread: {e}");
+                    None
+                }
+            },
             listing_tx,
             listing_rx,
             wallpaper_tx,
@@ -328,6 +340,30 @@ impl App {
 
     pub fn kill_timer(&self, t: Timer) {
         self.hwnd().kill_timer(t as usize);
+    }
+
+    /// Starts frame messages ([`WM_FRAME`]) on each screen refresh. Without
+    /// the pacer thread, frames fall back to a timer.
+    pub fn start_frames(&self) {
+        match &self.pacer {
+            Some(p) => p.resume(),
+            None => self.set_timer(Timer::Frame, 15),
+        }
+    }
+
+    /// Stops frame messages.
+    pub fn stop_frames(&self) {
+        match &self.pacer {
+            Some(p) => p.pause(),
+            None => self.kill_timer(Timer::Frame),
+        }
+    }
+
+    fn on_frame(&mut self) {
+        if let Some(p) = &self.pacer {
+            p.frame_done();
+        }
+        self.step_roll_anims();
     }
 
     /// Schedules a save of `layouts.json`.
@@ -1340,6 +1376,7 @@ impl App {
                     self.on_listing(l);
                 }
             }
+            WM_FRAME => self.on_frame(),
             WM_WALLPAPER => {
                 for batch in self.wallpaper_rx.try_iter().collect::<Vec<_>>() {
                     for (id, img) in batch {
@@ -1444,7 +1481,12 @@ impl App {
             Timer::Overlay => self.overlay = None,
             Timer::Collapse => self.check_collapse(),
             Timer::Startup => {}
-            Timer::RollAnim => self.step_roll_anims(),
+            Timer::Frame => {
+                self.step_roll_anims();
+                if self.fences.iter().any(|f| f.animating()) {
+                    self.set_timer(Timer::Frame, 15);
+                }
+            }
         }
     }
 

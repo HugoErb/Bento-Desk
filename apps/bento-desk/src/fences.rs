@@ -16,7 +16,7 @@ use bento_render::fence::{
 use bento_win::Hwnd;
 use bento_win::desktop::DesktopLayer;
 use bento_win::dragdrop::{DragEvent, DropRegistration, take_dropped};
-use bento_win::gfx::{RectF, Surface};
+use bento_win::gfx::{Gfx, RectF, Surface};
 use bento_win::hooks::unpack_point;
 use bento_win::window::{self, Cursor, Font, Kind, Message, OwnedWindow, msg};
 
@@ -40,8 +40,6 @@ pub struct FrameDrag {
 
 /// Duration of the roll-up and unroll animation.
 const ROLL_ANIM_MS: f32 = 180.0;
-/// Delay between two animation frames.
-const ROLL_FRAME_MS: u32 = 15;
 /// While a fence is temporarily open, how often the pointer is checked.
 const COLLAPSE_POLL_MS: u32 = 40;
 
@@ -120,6 +118,10 @@ pub struct FenceUi {
 }
 
 impl FenceUi {
+    pub fn animating(&self) -> bool {
+        self.anim.is_some()
+    }
+
     pub fn owns(&self, h: Hwnd) -> bool {
         self.backdrop.hwnd() == h || self.frame.hwnd() == h
     }
@@ -180,6 +182,20 @@ impl FenceUi {
 
     fn local_mouse(&self, screen: Point) -> Point {
         Point::new(screen.x - self.rect.left, screen.y - self.rect.top)
+    }
+}
+
+/// Makes `slot` a surface of `w` x `h`. While a fence animates its height,
+/// the bitmap is allocated for the open height once and reused at every
+/// frame instead of being recreated.
+fn ensure_surface(slot: &mut Option<Surface>, gfx: &Gfx, w: i32, h: i32, animating: Option<i32>) {
+    let fits = match (slot.as_mut(), animating) {
+        (Some(s), Some(_)) => s.reuse(w, h),
+        (Some(s), None) => s.size() == (w.max(1), h.max(1)),
+        (None, _) => false,
+    };
+    if !fits {
+        *slot = Surface::with_capacity(gfx, w, h, animating.unwrap_or(h)).ok();
     }
 }
 
@@ -397,11 +413,12 @@ impl App {
         ui.visible_rows = grid.visible_rows;
         ui.apply_rect();
         if start_anim {
-            self.set_timer(Timer::RollAnim, ROLL_FRAME_MS);
+            self.start_frames();
         }
     }
 
-    /// Advances the roll-up animations by one frame.
+    /// Advances the roll-up animations by one frame (called at each
+    /// refresh of the screen while one runs).
     pub fn step_roll_anims(&mut self) {
         let now = std::time::Instant::now();
         let (mut running, mut finished) = (false, false);
@@ -420,9 +437,10 @@ impl App {
             self.render_frame(i);
         }
         if running {
-            self.set_timer(Timer::RollAnim, ROLL_FRAME_MS);
             // Icons follow the moving bottom edge.
             self.move_icons();
+        } else {
+            self.stop_frames();
         }
         if finished {
             self.update_hit_data();
@@ -502,9 +520,8 @@ impl App {
         let highlight = self.fences[i].drop_tab.map(|_| self.theme.accent);
         let gfx = &self.gfx;
         let ui = &mut self.fences[i];
-        if ui.back_surface.as_ref().map(Surface::size) != Some((w, h)) {
-            ui.back_surface = Surface::new(gfx, w, h).ok();
-        }
+        let animating = ui.anim.map(|_| ui.full_rect.height());
+        ensure_surface(&mut ui.back_surface, gfx, w, h, animating);
         let Some(s) = ui.back_surface.as_mut() else {
             return;
         };
@@ -598,9 +615,8 @@ impl App {
         let gfx = &self.gfx;
         let ui = &mut self.fences[i];
         let (w, h) = (view.width, view.height);
-        if ui.frame_surface.as_ref().map(Surface::size) != Some((w, h)) {
-            ui.frame_surface = Surface::new(gfx, w, h).ok();
-        }
+        let animating = ui.anim.map(|_| ui.full_rect.height());
+        ensure_surface(&mut ui.frame_surface, gfx, w, h, animating);
         let Some(s) = ui.frame_surface.as_mut() else {
             return;
         };

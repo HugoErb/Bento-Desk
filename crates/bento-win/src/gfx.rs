@@ -345,6 +345,8 @@ pub struct Surface {
     bits: *mut u8,
     width: i32,
     height: i32,
+    /// Rows allocated in the bitmap (at least `height`).
+    capacity: i32,
     rt: ID2D1DCRenderTarget,
 }
 
@@ -356,8 +358,15 @@ impl std::fmt::Debug for Surface {
 
 impl Surface {
     pub fn new(gfx: &Gfx, width: i32, height: i32) -> Result<Surface> {
+        Surface::with_capacity(gfx, width, height, height)
+    }
+
+    /// Surface of `width` x `height` whose bitmap holds `capacity` rows, so
+    /// that [`Surface::reuse`] can later make it taller without allocating.
+    pub fn with_capacity(gfx: &Gfx, width: i32, height: i32, capacity: i32) -> Result<Surface> {
         let width = width.max(1);
         let height = height.max(1);
+        let capacity = capacity.max(height);
         // SAFETY: memory DC compatible with the screen.
         let hdc = unsafe { CreateCompatibleDC(None) };
         if hdc.is_invalid() {
@@ -367,7 +376,7 @@ impl Surface {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: size_of::<BITMAPINFOHEADER>() as u32,
                 biWidth: width,
-                biHeight: -height, // top-down rows
+                biHeight: -capacity, // top-down rows
                 biPlanes: 1,
                 biBitCount: 32,
                 biCompression: BI_RGB.0,
@@ -430,12 +439,26 @@ impl Surface {
             bits: bits as *mut u8,
             width,
             height,
+            capacity,
             rt,
         })
     }
 
     pub fn size(&self) -> (i32, i32) {
         (self.width, self.height)
+    }
+
+    /// Takes the size `width` x `height` without allocating when the width
+    /// is unchanged and the bitmap has enough rows. Only the first `height`
+    /// rows are drawn and presented. Returns false when a new surface is
+    /// needed.
+    pub fn reuse(&mut self, width: i32, height: i32) -> bool {
+        let (width, height) = (width.max(1), height.max(1));
+        if width != self.width || height > self.capacity {
+            return false;
+        }
+        self.height = height;
+        true
     }
 
     /// Clears to transparent and runs the drawing closure.

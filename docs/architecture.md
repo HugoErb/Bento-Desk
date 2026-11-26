@@ -340,7 +340,7 @@ Aucune autre dépendance. Fonctions écrites à la main plutôt qu'ajoutées en 
   - Les fences ne sont redessinées que sur événement (redimensionnement, survol, changement de style). Le coût CPU est donc négligeable.
 - **DirectWrite** pour le texte (titres, onglets, noms dans les portails), avec la police Segoe UI Variable par défaut sous Windows 11.
 - **Flou** : la portion du fond d'écran sous chaque fence est lue avec `IDesktopWallpaper` et WIC, réduite, puis floutée (trois passes de flou boîte, approximation d'un flou gaussien). Le résultat est mis en cache. Recalcul seulement quand le fond d'écran, la position ou la taille changent.
-- **Look 2026** : coins arrondis, ombres douces, Segoe UI Variable, couleur d'accent Windows, animations courtes à l'ouverture et à la fermeture du roll-up. Les animations utilisent une minuterie temporaire, arrêtée en fin d'animation.
+- **Look 2026** : coins arrondis, ombres douces, Segoe UI Variable, couleur d'accent Windows, animations courtes à l'ouverture et à la fermeture du roll-up. Les animations sont cadencées sur le rafraîchissement de l'écran : un thread attend chaque passe de composition du DWM (`DwmFlush`) et poste un message par image tant qu'une animation tourne, puis se met en pause. Pendant l'animation, les surfaces de dessin sont allouées une fois à la hauteur ouverte et réutilisées à chaque image.
 - **Menus** (fences, tray) : popups dessinés par l'app au style Fluent, clair ou sombre. Sur Windows 11, coins arrondis (`DWMWA_WINDOW_CORNER_PREFERENCE`) et backdrop Acrylic (`DWMWA_SYSTEMBACKDROP_TYPE`). Ce choix évite l'API non documentée de mode sombre des menus Win32.
 - DirectComposition n'est pas nécessaire avec ce choix.
 

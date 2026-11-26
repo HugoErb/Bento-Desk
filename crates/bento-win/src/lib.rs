@@ -26,6 +26,7 @@ pub mod input;
 pub mod shell;
 pub mod system;
 pub mod tray;
+pub mod vsync;
 pub mod wallpaper;
 pub mod window;
 
