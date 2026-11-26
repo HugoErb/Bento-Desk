@@ -3,7 +3,9 @@
 //!
 //! The drop always answers `DROPEFFECT_NONE`: Bento Desk only records that
 //! the item now belongs to the fence, and the drag source must never move
-//! or delete the file.
+//! or delete the file. A drop on a folder portal is carried out by Bento
+//! Desk itself with `IFileOperation` (see `shell::transfer`), still with
+//! `DROPEFFECT_NONE` for the source.
 //! <https://learn.microsoft.com/windows/win32/api/oleidl/nn-oleidl-idroptarget>
 
 use std::sync::Mutex;
@@ -132,10 +134,11 @@ impl IDropTarget_Impl for Target_Impl {
     fn Drop(
         &self,
         data: Ref<IDataObject>,
-        _keys: MODIFIERKEYS_FLAGS,
+        keys: MODIFIERKEYS_FLAGS,
         pt: &POINTL,
         effect: *mut DROPEFFECT,
     ) -> windows::core::Result<()> {
+        DROP_KEYS.store(keys.0, std::sync::atomic::Ordering::Relaxed);
         if let Some(d) = data.as_ref() {
             let n = names(d);
             if let Ok(mut v) = DROPPED.lock() {
@@ -174,5 +177,73 @@ impl Drop for DropRegistration {
             // SAFETY: same window as the registration.
             let _ = unsafe { RevokeDragDrop(self.0.raw()) };
         }
+    }
+}
+
+/// Keys held when the last drop happened: (Ctrl, Shift).
+pub fn dropped_keys() -> (bool, bool) {
+    let k = DROP_KEYS.load(std::sync::atomic::Ordering::Relaxed);
+    (k & 0x8 != 0, k & 0x4 != 0)
+}
+
+static DROP_KEYS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Absolute item id list of a path, freed on drop.
+struct Pidl(*mut windows::Win32::UI::Shell::Common::ITEMIDLIST);
+
+impl Drop for Pidl {
+    fn drop(&mut self) {
+        // SAFETY: allocated by SHParseDisplayName, freed once.
+        unsafe { windows::Win32::UI::Shell::ILFree(Some(self.0)) };
+    }
+}
+
+fn parse(path: &str) -> Option<Pidl> {
+    let w = crate::util::wide(path);
+    let mut p = std::ptr::null_mut();
+    // SAFETY: NUL-terminated path and valid out pointer.
+    // https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shparsedisplayname
+    unsafe {
+        windows::Win32::UI::Shell::SHParseDisplayName(
+            crate::util::pcwstr(&w),
+            None,
+            &mut p,
+            0,
+            None,
+        )
+    }
+    .ok()?;
+    (!p.is_null()).then_some(Pidl(p))
+}
+
+/// Starts a drag of files from a portal. Blocks until the drop (OLE modal
+/// loop on this thread). The drop target decides what to do with the
+/// files, exactly as when dragging from an Explorer window.
+pub fn drag_out(hwnd: Hwnd, paths: &[String]) -> bool {
+    use windows::Win32::System::Ole::{DROPEFFECT_COPY, DROPEFFECT_LINK};
+    use windows::Win32::UI::Shell::{BHID_DataObject, SHCreateShellItemArrayFromIDLists, SHDoDragDrop};
+    let pidls: Vec<Pidl> = paths.iter().filter_map(|p| parse(p)).collect();
+    if pidls.is_empty() {
+        return false;
+    }
+    let raw: Vec<*const windows::Win32::UI::Shell::Common::ITEMIDLIST> =
+        pidls.iter().map(|p| p.0 as *const _).collect();
+    // SAFETY: the id lists stay alive until the end of the function; the
+    // data object copies them. SHDoDragDrop supplies a default drop source.
+    // https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shdodragdrop
+    unsafe {
+        let Ok(arr) = SHCreateShellItemArrayFromIDLists(&raw) else {
+            return false;
+        };
+        let Ok(data) = arr.BindToHandler::<_, IDataObject>(None, &BHID_DataObject) else {
+            return false;
+        };
+        SHDoDragDrop(
+            Some(hwnd.raw()),
+            &data,
+            None,
+            DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK,
+        )
+        .is_ok()
     }
 }

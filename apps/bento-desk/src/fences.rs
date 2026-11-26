@@ -580,7 +580,7 @@ impl App {
                 };
                 let hit = layout.hit(local, self.fences[i].portal);
                 if hit == FrameHit::Body && self.fences[i].portal {
-                    self.portal_click(i, local, false);
+                    self.portal_press(i, local, screen);
                     return Some(0);
                 }
                 let f = &mut self.fences[i];
@@ -594,7 +594,12 @@ impl App {
                 });
                 f.frame.hwnd().set_capture();
             }
-            msg::WM_LBUTTONUP => self.on_frame_up(i, local, screen),
+            msg::WM_LBUTTONUP => {
+                if self.fences[i].portal {
+                    self.portal_release(i);
+                }
+                self.on_frame_up(i, local, screen);
+            }
             msg::WM_LBUTTONDBLCLK => {
                 let Some(layout) = self.frame_layout(i) else {
                     return Some(0);
@@ -643,6 +648,9 @@ impl App {
         self.fences[i].mouse = Some(local);
         let Some(drag) = self.fences[i].drag else {
             if self.fences[i].portal {
+                if self.portal_drag(i, screen) {
+                    return;
+                }
                 self.portal_hover(i, local);
             }
             self.render_frame(i);
@@ -1155,6 +1163,16 @@ impl App {
                 let Some(i) = target else { return };
                 let tab = tab_at(self, i).unwrap_or(0);
                 self.fences[i].drop_tab = None;
+                let on_portal_body = self.fences[i].portal
+                    && self.frame_layout(i).is_some_and(|l| {
+                        l.hit(self.fences[i].local_mouse(p), true) == FrameHit::Body
+                    });
+                if on_portal_body {
+                    let (ctrl, shift) = bento_win::dragdrop::dropped_keys();
+                    self.portal_drop(i, keys, ctrl, shift);
+                    self.render_frame(i);
+                    return;
+                }
                 let id = self.fences[i].id;
                 let known: Vec<String> = keys
                     .into_iter()

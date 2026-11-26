@@ -21,6 +21,9 @@ pub struct PortalState {
     pub first_row: usize,
     pub hover: Option<usize>,
     pub selected: Option<usize>,
+    /// Left button pressed on an entry: screen point and entry index, to
+    /// start a drag once the mouse moves far enough.
+    pub press: Option<(Point, usize)>,
     _watch: Option<DirWatcher>,
 }
 
@@ -115,6 +118,7 @@ impl App {
             first_row: 0,
             hover: None,
             selected: None,
+            press: None,
             _watch: watch,
         });
         list_folder_async(
@@ -322,5 +326,100 @@ impl App {
             p.first_row = next;
         }
         self.render_frame(i);
+    }
+
+    /// Left button down on a portal body: selects the entry and arms a drag.
+    pub fn portal_press(&mut self, i: usize, local: Point, screen: Point) {
+        self.portal_click(i, local, false);
+        let hit = self.portal_layout(i).and_then(|(l, _)| l.hit(local));
+        if let Some(p) = self.fences[i].portal_state.as_mut() {
+            p.press = hit.map(|idx| (screen, idx));
+        }
+    }
+
+    /// Mouse moved with the button down: starts an OLE drag of the entry
+    /// once the system drag threshold is passed. Returns true if a drag ran.
+    pub fn portal_drag(&mut self, i: usize, screen: Point) -> bool {
+        let Some((start, idx)) = self.fences[i].portal_state.as_ref().and_then(|p| p.press) else {
+            return false;
+        };
+        if !bento_win::input::left_button_down() {
+            if let Some(p) = self.fences[i].portal_state.as_mut() {
+                p.press = None;
+            }
+            return false;
+        }
+        let (tw, th) = bento_win::input::double_click_size();
+        if (screen.x - start.x).abs() <= tw && (screen.y - start.y).abs() <= th {
+            return false;
+        }
+        if let Some(p) = self.fences[i].portal_state.as_mut() {
+            p.press = None;
+        }
+        let Some(path) = self
+            .portal_layout(i)
+            .and_then(|(_, entries)| entries.get(idx).map(|e| e.path.clone()))
+        else {
+            return false;
+        };
+        let hwnd = self.fences[i].frame.hwnd();
+        bento_win::dragdrop::drag_out(hwnd, &[path]);
+        self.refresh_portal(i);
+        true
+    }
+
+    pub fn portal_release(&mut self, i: usize) {
+        if let Some(p) = self.fences[i].portal_state.as_mut() {
+            p.press = None;
+        }
+    }
+
+    /// Files dropped on a portal: moved into its current folder (copied
+    /// across volumes, or with Ctrl), like a drop in Explorer.
+    pub fn portal_drop(&mut self, i: usize, paths: Vec<String>, ctrl: bool, shift: bool) {
+        let Some(dest) = self.fences[i].portal_state.as_ref().map(|p| p.path.clone()) else {
+            return;
+        };
+        let files: Vec<String> = paths
+            .into_iter()
+            .filter(|p| !p.starts_with("::") && Path::new(p).exists())
+            .filter(|p| Path::new(p).parent() != Some(Path::new(&dest)) && *p != dest)
+            .collect();
+        if files.is_empty() {
+            return;
+        }
+        let same_volume = files.iter().all(|f| volume(f) == volume(&dest));
+        let copy = ctrl || (!shift && !same_volume);
+        tracing::info!(
+            "{} {} item(s) into {dest}",
+            if copy { "copying" } else { "moving" },
+            files.len()
+        );
+        if !bento_win::shell::transfer(files, dest, copy) {
+            tracing::warn!("cannot start the file operation");
+        }
+    }
+}
+
+/// Drive or share of a path, lower case (`c:`, `\\server\share`).
+fn volume(p: &str) -> String {
+    match Path::new(p).components().next() {
+        Some(std::path::Component::Prefix(pre)) => {
+            pre.as_os_str().to_string_lossy().to_lowercase()
+        }
+        _ => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::volume;
+
+    #[test]
+    fn volumes() {
+        assert_eq!(volume(r"C:\Users\a.txt"), "c:");
+        assert_eq!(volume(r"c:\x"), volume(r"C:\y"));
+        assert_ne!(volume(r"D:\x"), volume(r"C:\y"));
+        assert_eq!(volume(r"\\srv\share\f"), r"\\srv\share");
     }
 }

@@ -90,14 +90,45 @@ const HK_PREV_PAGE: i32 = 4;
 
 thread_local! {
     static APP: RefCell<Option<App>> = const { RefCell::new(None) };
+    /// Application messages that arrived while the app was busy in a modal
+    /// loop (context menu, drag and drop, dialog), posted again afterwards.
+    static DEFERRED: RefCell<Vec<(Hwnd, u32, usize, isize)>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Window procedure entry point for every window of the app.
 pub fn dispatch(m: &Message) -> Option<isize> {
     APP.with(|cell| match cell.try_borrow_mut() {
-        Ok(mut guard) => guard.as_mut().and_then(|app| app.on_message(m)),
-        Err(_) => None,
+        Ok(mut guard) => {
+            let r = guard.as_mut().and_then(|app| app.on_message(m));
+            drop(guard);
+            flush_deferred();
+            r
+        }
+        Err(_) => {
+            // Re-entered from a modal loop. Posted application messages
+            // (worker replies, drops, folder changes) must not be lost.
+            let posted = m.msg >= msg::WM_APP;
+            if posted {
+                DEFERRED.with(|d| {
+                    if let Ok(mut d) = d.try_borrow_mut() {
+                        d.push((m.hwnd, m.msg, m.wparam, m.lparam));
+                    }
+                });
+                Some(0)
+            } else {
+                None
+            }
+        }
     })
+}
+
+fn flush_deferred() {
+    let pending = DEFERRED.with(|d| d.try_borrow_mut().map(|mut d| std::mem::take(&mut *d)));
+    if let Ok(pending) = pending {
+        for (h, msg, w, l) in pending {
+            h.post(msg, w, l);
+        }
+    }
 }
 
 /// Installs the app in the thread-local slot.

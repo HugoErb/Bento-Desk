@@ -275,3 +275,42 @@ pub fn pick_save_file(
     set_filter(&base, filter)?;
     dialog_result(&base, owner)
 }
+
+/// Copies or moves files into `dest` with the shell's own file operation
+/// (progress window, conflict questions, undo). Runs on a short-lived
+/// thread so that a long copy never blocks the desktop. False if the
+/// thread could not start.
+/// <https://learn.microsoft.com/windows/win32/api/shobjidl_core/nn-shobjidl_core-ifileoperation>
+pub fn transfer(paths: Vec<String>, dest: String, copy: bool) -> bool {
+    std::thread::Builder::new()
+        .name("bento-fileop".into())
+        .spawn(move || {
+            use windows::Win32::UI::Shell::{FOF_ALLOWUNDO, FileOperation, IFileOperation};
+            let Ok(_com) = crate::com::ComApartment::sta() else {
+                return;
+            };
+            let Some(target) = shell_item(&dest) else {
+                return;
+            };
+            // SAFETY: in-process shell object on this STA thread.
+            let Ok(op) = (unsafe {
+                CoCreateInstance::<_, IFileOperation>(&FileOperation, None, CLSCTX_INPROC_SERVER)
+            }) else {
+                return;
+            };
+            // SAFETY: plain COM calls with live items.
+            unsafe {
+                let _ = op.SetOperationFlags(FOF_ALLOWUNDO);
+                for p in &paths {
+                    let Some(item) = shell_item(p) else { continue };
+                    let _ = if copy {
+                        op.CopyItem(&item, &target, windows::core::PCWSTR::null(), None)
+                    } else {
+                        op.MoveItem(&item, &target, windows::core::PCWSTR::null(), None)
+                    };
+                }
+                let _ = op.PerformOperations();
+            }
+        })
+        .is_ok()
+}
