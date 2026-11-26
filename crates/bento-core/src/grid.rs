@@ -148,6 +148,20 @@ pub fn fence_cell(desktop_spacing: Size, spacing_percent: u16) -> Size {
     )
 }
 
+/// Offset from the top-left corner of a fence cell to the position given
+/// to Explorer. Explorer positions an icon by the top-left corner of its
+/// image, its label being centered below and as wide as the desktop
+/// spacing: the image is centered horizontally in the cell, and the extra
+/// height of a cell larger than the desktop spacing is split above and
+/// below the icon.
+pub fn icon_offset(cell: Size, desktop_spacing: Size, icon_size: i32) -> Point {
+    let icon = icon_size.clamp(1, desktop_spacing.width.max(1));
+    Point::new(
+        (cell.width - icon).max(0) / 2,
+        (cell.height - desktop_spacing.height).max(0) / 2,
+    )
+}
+
 /// Off-screen position used to hide ("park") an icon. Explorer cannot hide
 /// a single icon, so hidden icons are moved right of the virtual screen.
 pub fn park_slot(virtual_screen: &Rect, cell: Size, n: usize) -> Point {
@@ -262,6 +276,19 @@ mod tests {
         let p = park_slot(&vs, Size::new(75, 100), 20);
         assert!(is_parked(&vs, p));
         assert!(!is_parked(&vs, Point::new(100, 100)));
+    }
+
+    #[test]
+    fn icon_is_centered_in_its_cell() {
+        let spacing = Size::new(96, 101);
+        assert_eq!(icon_offset(spacing, spacing, 48), Point::new(24, 0));
+        let wide = fence_cell(spacing, 120);
+        assert_eq!(icon_offset(wide, spacing, 48), Point::new(33, 10));
+        // A cell narrower than the icon never shifts it left.
+        assert_eq!(
+            icon_offset(Size::new(40, 50), spacing, 48),
+            Point::new(0, 0)
+        );
     }
 
     #[test]

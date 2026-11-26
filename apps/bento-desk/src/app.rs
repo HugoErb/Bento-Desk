@@ -636,6 +636,7 @@ impl App {
     /// Recomputes every icon position, asks Explorer to move icons and
     /// redraws the frames.
     pub fn relayout(&mut self) {
+        self.refit_heights();
         if self.move_icons() {
             for i in 0..self.fences.len() {
                 self.render_frame(i);
@@ -661,6 +662,7 @@ impl App {
             items: &self.items,
             desktop_spacing: self.spacing,
             spacing_percent: self.config.layout.icon_spacing,
+            icon_size: self.icon_size,
             virtual_screen: self.virtual_screen(),
             park_free: self.quick_hidden && !self.config.quick_hide.keep_free_icons,
         };
@@ -837,6 +839,7 @@ impl App {
             let moved = sync::moved_by_user(&self.expected, &self.items);
             let spacing = self.spacing;
             let pct = self.config.layout.icon_spacing;
+            let icon = self.icon_size;
             let mut back = Vec::new();
             for (key, pos) in moved {
                 let allowed = self
@@ -854,7 +857,7 @@ impl App {
                     continue;
                 }
                 if let Some(l) = self.state.layout_mut(&self.layout_key) {
-                    changed |= sync::apply_user_move(l, &placed, &key, pos, spacing, pct);
+                    changed |= sync::apply_user_move(l, &placed, &key, pos, spacing, pct, icon);
                 }
             }
             if !back.is_empty() {

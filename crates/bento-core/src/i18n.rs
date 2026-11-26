@@ -102,7 +102,7 @@ messages! {
     SpacingCompact => "Compact", "Compact";
     SpacingNormal => "Normal", "Normal";
     SpacingWide => "Large", "Wide";
-    FenceFitContent => "Ajuster la taille au contenu", "Fit size to content";
+    FenceFitContent => "Ajuster la hauteur au contenu", "Fit height to content";
     FenceWidth => "Largeur à l'écran", "Screen width";
     WidthFull => "Toute la largeur", "Full width";
     WidthFraction => "{} de l'écran", "{} of the screen";

@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use bento_core::geometry::{Point, Rect, Size};
-use bento_core::grid::{Grid, fence_cell, park_slot, place};
+use bento_core::grid::{Grid, fence_cell, icon_offset, park_slot, place};
 use bento_core::items::ItemInfo;
 use bento_core::model::{FenceId, Layout};
 use bento_core::rules::{Rule, first_match};
@@ -40,6 +40,8 @@ pub struct LayoutInput<'a> {
     pub items: &'a BTreeMap<String, DeskItem>,
     pub desktop_spacing: Size,
     pub spacing_percent: u16,
+    /// Size of the icon image, physical pixels.
+    pub icon_size: i32,
     pub virtual_screen: Rect,
     /// Park free icons too (quick-hide without "keep free icons").
     pub park_free: bool,
@@ -49,6 +51,7 @@ pub struct LayoutInput<'a> {
 /// unless `park_free` is set.
 pub fn targets(inp: &LayoutInput<'_>) -> BTreeMap<String, Point> {
     let cell = fence_cell(inp.desktop_spacing, inp.spacing_percent);
+    let shift = icon_offset(cell, inp.desktop_spacing, inp.icon_size);
     let mut out = BTreeMap::new();
     let mut parked = 0usize;
     let mut park = |key: &str, out: &mut BTreeMap<String, Point>| {
@@ -77,7 +80,8 @@ pub fn targets(inp: &LayoutInput<'_>) -> BTreeMap<String, Point> {
                     Some(p) if active && !p.hidden && !p.portal => {
                         let grid = Grid::new(p.body, cell);
                         let pl = place(&grid, present.len(), tab.scroll_row, p.rolled);
-                        for (i, pos) in pl.visible {
+                        for (i, slot) in pl.visible {
+                            let pos = slot.offset(shift.x, shift.y);
                             let cut = p
                                 .clip_bottom
                                 .is_some_and(|c| pos.y + inp.desktop_spacing.height > c);
@@ -157,8 +161,10 @@ pub fn apply_user_move(
     pos: Point,
     desktop_spacing: Size,
     spacing_percent: u16,
+    icon_size: i32,
 ) -> bool {
     let cell = fence_cell(desktop_spacing, spacing_percent);
+    let shift = icon_offset(cell, desktop_spacing, icon_size);
     let target = fence_at(placed, pos, desktop_spacing);
     let source = layout
         .pages
@@ -198,7 +204,8 @@ pub fn apply_user_move(
             let grid = Grid::new(p.body, cell);
             let scroll = tab.scroll_row;
             if let Some(items) = tab.content.desktop_items_mut() {
-                let idx = grid.index_at(pos, scroll, items.len());
+                let cell_pos = pos.offset(-shift.x, -shift.y);
+                let idx = grid.index_at(cell_pos, scroll, items.len());
                 items.insert(idx, key.to_owned());
             }
             true
@@ -363,6 +370,7 @@ mod tests {
             items: &items,
             desktop_spacing: CELL,
             spacing_percent: 100,
+            icon_size: CELL.width,
             virtual_screen: vs(),
             park_free: false,
         };
@@ -373,6 +381,38 @@ mod tests {
         assert!(!t.contains_key("free"));
         let m = moves(&t, &items);
         assert_eq!(m.len(), 3);
+    }
+
+    #[test]
+    fn icons_are_centered_in_wide_cells() {
+        let l = layout(vec![fence(1, &["a", "b"])]);
+        let items: BTreeMap<_, _> = [item("a", 0, 0), item("b", 0, 0)].into_iter().collect();
+        let pl = [placed(1, Rect::from_xywh(100, 100, 400, 200))];
+        let spacing = Size::new(96, 101);
+        let inp = LayoutInput {
+            layout: &l,
+            placed: &pl,
+            items: &items,
+            desktop_spacing: spacing,
+            spacing_percent: 120,
+            icon_size: 48,
+            virtual_screen: vs(),
+            park_free: false,
+        };
+        let t = targets(&inp);
+        // 3 cells of 115 px in 400 px: 27 px of slack each side, then the
+        // 48 px image centered in its cell (+33) and the extra height split.
+        assert_eq!(t["a"], Point::new(100 + 27 + 33, 110));
+        assert_eq!(t["b"], Point::new(100 + 27 + 115 + 33, 110));
+        // A drop where Explorer reports the icon maps back to its cell.
+        let mut l2 = l.clone();
+        assert!(apply_user_move(&mut l2, &pl, "a", t["b"], spacing, 120, 48));
+        assert_eq!(
+            l2.fence(FenceId(1)).unwrap().tabs[0]
+                .content
+                .desktop_items(),
+            ["b", "a"]
+        );
     }
 
     #[test]
@@ -394,6 +434,7 @@ mod tests {
             items: &items,
             desktop_spacing: CELL,
             spacing_percent: 100,
+            icon_size: CELL.width,
             virtual_screen: vs(),
             park_free: true,
         };
@@ -439,7 +480,8 @@ mod tests {
             "a",
             Point::new(510, 10),
             CELL,
-            100
+            100,
+            CELL.width
         ));
         assert!(l.fence(FenceId(2)).unwrap().contains_item("a"));
         assert!(!l.fence(FenceId(1)).unwrap().contains_item("a"));
@@ -450,7 +492,8 @@ mod tests {
             "b",
             Point::new(90, 10),
             CELL,
-            100
+            100,
+            CELL.width
         ));
         assert!(l.fence(FenceId(1)).unwrap().contains_item("b"));
         // a dragged out to the desktop.
@@ -460,7 +503,8 @@ mod tests {
             "a",
             Point::new(1500, 600),
             CELL,
-            100
+            100,
+            CELL.width
         ));
         assert!(!l.fence(FenceId(2)).unwrap().contains_item("a"));
         // free icon moved on the desktop: nothing.
@@ -470,7 +514,8 @@ mod tests {
             "z",
             Point::new(1500, 600),
             CELL,
-            100
+            100,
+            CELL.width
         ));
         // free icon dropped into fence 1 at the start.
         assert!(apply_user_move(
@@ -479,7 +524,8 @@ mod tests {
             "z",
             Point::new(0, 0),
             CELL,
-            100
+            100,
+            CELL.width
         ));
         assert_eq!(
             l.fence(FenceId(1)).unwrap().tabs[0].content.desktop_items()[0],

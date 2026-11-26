@@ -219,6 +219,8 @@ pub struct Fence {
     pub quick_hide_exempt: bool,
     /// Cannot be moved or resized, and icons cannot be added or removed.
     pub locked: bool,
+    /// Height follows the content: every icon shown, no scrolling.
+    pub fit_height: bool,
 }
 
 impl Fence {

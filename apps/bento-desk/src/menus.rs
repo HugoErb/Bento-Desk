@@ -41,7 +41,7 @@ pub enum FenceCmd {
     Sort(SortKey),
     ToggleDescending,
     Spacing(u16),
-    FitContent,
+    ToggleFitHeight,
     /// Width of `span` columns out of `count` splitting the screen.
     Width(u8, u8),
     CopyStyle,
@@ -233,9 +233,14 @@ impl App {
                     b.radio(t(Msg::SpacingWide), sp > 105, f(FenceCmd::Spacing(120))),
                 ];
                 items.push(MenuItem::submenu(t(Msg::FenceSpacing), spacing));
-                if !fence.locked {
-                    items.push(b.action(t(Msg::FenceFitContent), f(FenceCmd::FitContent)));
-                }
+                items.push(
+                    b.check(
+                        t(Msg::FenceFitContent),
+                        fence.fit_height,
+                        f(FenceCmd::ToggleFitHeight),
+                    )
+                    .enabled(!fence.locked),
+                );
             }
             TabContent::Portal { view, .. } => {
                 items.push(b.radio(
@@ -456,7 +461,13 @@ impl App {
                 self.render_all();
                 self.relayout();
             }
-            FenceCmd::FitContent => self.fit_content(id),
+            FenceCmd::ToggleFitHeight => {
+                if let Some(f) = self.layout_mut().and_then(|l| l.fence_mut(id)) {
+                    f.fit_height = !f.fit_height;
+                }
+                self.mark_dirty();
+                self.relayout();
+            }
             FenceCmd::Width(span, count) => self.fit_width(id, span, count),
             FenceCmd::CopyStyle => {
                 self.style_clip = Some(
@@ -589,44 +600,79 @@ impl App {
         }
     }
 
-    /// Resizes the fence height to show every icon without scrolling.
-    fn fit_content(&mut self, id: FenceId) {
-        let Some(i) = self.fences.iter().position(|f| f.id == id) else {
-            return;
-        };
-        let ui = &self.fences[i];
-        let m = bento_core::grid::FrameMetrics::for_dpi(ui.dpi);
-        let cell = bento_core::grid::fence_cell(self.spacing, self.config.layout.icon_spacing);
-        let full = ui.full_rect;
-        let grid = bento_core::grid::Grid::new(m.body(&full), cell);
-        let count = self
-            .layout()
-            .and_then(|l| l.fence(id))
-            .and_then(|f| f.active())
-            .map(|t| {
-                t.content
-                    .desktop_items()
-                    .iter()
-                    .filter(|k| self.items.contains_key(k.as_str()))
-                    .count()
-            })
-            .unwrap_or(0);
-        let body_h = grid.fit_height(count.max(1));
-        let h = body_h + m.title_height + m.padding;
-        let r = Rect::from_xywh(full.left, full.top, full.width(), h.max(m.min_height));
-        if let Some(g) = bento_core::display::px_to_geometry(&r, &self.monitors)
-            && let Some(f) = self.layout_mut().and_then(|l| l.fence_mut(id))
-        {
-            f.geometry = g;
-            if let Some(t) = f.active_mut() {
-                t.scroll_row = 0;
-            }
+    /// Geometry of fence `i` with the height that shows every icon without
+    /// scrolling, `None` when it already has it or cannot be fitted.
+    fn fitted_geometry(&self, i: usize) -> Option<bento_core::model::FenceGeometry> {
+        use bento_core::display::{geometry_to_px, monitor_for_rect, px_to_geometry};
+        use bento_core::grid::{FrameMetrics, Grid, fence_cell};
+        let ui = self.fences.get(i)?;
+        let fence = self.layout()?.fence(ui.id)?;
+        let tab = fence.active()?;
+        if tab.content.is_portal() {
+            return None;
         }
-        self.mark_dirty();
-        self.update_fence_geometry(i);
-        self.render_backdrop(i);
-        self.render_frame(i);
-        self.relayout();
+        let count = tab
+            .content
+            .desktop_items()
+            .iter()
+            .filter(|k| self.items.contains_key(k.as_str()))
+            .count()
+            .max(1);
+        let full = geometry_to_px(&fence.geometry, &self.monitors)?;
+        let work = monitor_for_rect(&self.monitors, &full)?.work;
+        let m = FrameMetrics::for_dpi(ui.dpi);
+        let cell = fence_cell(self.spacing, self.config.layout.icon_spacing);
+        let rows = Grid::new(m.body(&full), cell).total_rows(count);
+        let wanted = Grid::new(m.body(&full), cell).fit_height(count) + m.title_height + m.padding;
+        let max_h = (work.bottom - full.top).max(m.min_height);
+        // The geometry is stored in DIP: rounding can take a pixel or two
+        // off, which would hide the last row. Grow until it is shown.
+        let mut h = wanted.clamp(m.min_height, max_h);
+        let mut g = px_to_geometry(
+            &Rect::from_xywh(full.left, full.top, full.width(), h),
+            &self.monitors,
+        )?;
+        for _ in 0..4 {
+            let back = geometry_to_px(&g, &self.monitors)?;
+            if h >= max_h || Grid::new(m.body(&back), cell).visible_rows >= rows {
+                break;
+            }
+            h += 1;
+            g = px_to_geometry(
+                &Rect::from_xywh(full.left, full.top, full.width(), h),
+                &self.monitors,
+            )?;
+        }
+        (g != fence.geometry).then_some(g)
+    }
+
+    /// Applies "fit height to content" to every fence that has it. Called
+    /// before each layout pass, so the height follows added or removed
+    /// icons, the width and the icon spacing.
+    pub fn refit_heights(&mut self) {
+        for i in 0..self.fences.len() {
+            let id = self.fences[i].id;
+            let fit = self
+                .layout()
+                .and_then(|l| l.fence(id))
+                .is_some_and(|f| f.fit_height);
+            if !fit || self.fences[i].drag.is_some() {
+                continue;
+            }
+            let Some(g) = self.fitted_geometry(i) else {
+                continue;
+            };
+            if let Some(f) = self.layout_mut().and_then(|l| l.fence_mut(id)) {
+                f.geometry = g;
+                if let Some(t) = f.active_mut() {
+                    t.scroll_row = 0;
+                }
+            }
+            self.mark_dirty();
+            self.update_fence_geometry(i);
+            self.render_backdrop(i);
+            self.render_frame(i);
+        }
     }
 
     /// Full rectangle of a fence resized to `span` columns out of `count`
