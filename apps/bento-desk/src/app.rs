@@ -840,8 +840,14 @@ impl App {
             let spacing = self.spacing;
             let pct = self.config.layout.icon_spacing;
             let icon = self.icon_size;
+            let vs = self.virtual_screen();
             let mut back = Vec::new();
             for (key, pos) in moved {
+                // Nobody drops an icon in the parking area beyond the right
+                // edge of the screens: Explorer moved it there, not the user.
+                if bento_core::grid::is_parked(&vs, pos) {
+                    continue;
+                }
                 let allowed = self
                     .state
                     .layout(&self.layout_key)

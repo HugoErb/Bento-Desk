@@ -176,8 +176,13 @@ pub fn apply_user_move(
         (None, None) => false,
         (Some(s), None) => {
             // Dragged out of a visible fence onto the free desktop. Ignore
-            // moves of hidden icons (parked by us).
-            if placed.iter().any(|p| p.id == s) {
+            // moves of hidden icons (parked by us): a rolled-up, quick-hidden
+            // or portal fence shows no icon the user could have dragged, so
+            // the move comes from Explorer (stale position, grid snap).
+            if placed
+                .iter()
+                .any(|p| p.id == s && !p.rolled && !p.hidden && !p.portal)
+            {
                 if let Some(f) = layout.fence_mut(s) {
                     f.remove_item(key);
                 }
@@ -531,6 +536,31 @@ mod tests {
             l.fence(FenceId(1)).unwrap().tabs[0].content.desktop_items()[0],
             "z"
         );
+    }
+
+    #[test]
+    fn rolled_or_hidden_fence_keeps_its_parked_icons() {
+        let mut l = layout(vec![fence(1, &["a"]), fence(2, &["b"])]);
+        let mut rolled = placed(1, Rect::from_xywh(0, 0, 400, 30));
+        rolled.rolled = true;
+        let mut hidden = placed(2, Rect::from_xywh(500, 0, 400, 200));
+        hidden.hidden = true;
+        let pl = [rolled, hidden];
+        // Explorer reports the icons elsewhere (stale position or snap):
+        // they stay in their fence.
+        for (key, x) in [("a", 50), ("b", 3000)] {
+            assert!(!apply_user_move(
+                &mut l,
+                &pl,
+                key,
+                Point::new(x, 600),
+                CELL,
+                100,
+                CELL.width
+            ));
+        }
+        assert!(l.fence(FenceId(1)).unwrap().contains_item("a"));
+        assert!(l.fence(FenceId(2)).unwrap().contains_item("b"));
     }
 
     #[test]
