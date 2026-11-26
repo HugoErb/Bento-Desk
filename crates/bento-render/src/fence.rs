@@ -214,6 +214,13 @@ pub fn title_color(style: &FenceStyle, bg: Rgba) -> Rgba {
         .unwrap_or_else(|| bg.with_alpha(255).contrasting_text())
 }
 
+/// Opaque color seen under the title text: the band laid over `bg`.
+pub fn title_band_seen(style: &FenceStyle, bg: Rgba) -> Rgba {
+    let band = style.title_band();
+    bg.with_alpha(255)
+        .mix(band.with_alpha(255), f32::from(band.a) / 255.0)
+}
+
 fn button(c: &mut Canvas<'_>, r: Rect, glyph: &str, fg: Rgba, hovered: bool, dpi: u32) {
     let rf = RectF::from(r).inset(3.0 * scale(dpi));
     if hovered {
@@ -235,7 +242,7 @@ pub fn draw_frame(c: &mut Canvas<'_>, v: &FrameView<'_>, l: &FrameLayout, hover:
         .get(v.active_tab)
         .map(|t| t.color)
         .unwrap_or_else(|| v.style.tint.to_rgba());
-    let fg = title_color(v.style, bg);
+    let fg = title_color(v.style, title_band_seen(v.style, bg));
 
     // Invisible but hit-testable resize ring.
     let rb = l.metrics.resize_border as f32;
@@ -249,7 +256,7 @@ pub fn draw_frame(c: &mut Canvas<'_>, v: &FrameView<'_>, l: &FrameLayout, hover:
     // Title area: always hit-testable, drawn when visible.
     let title = RectF::from(l.title);
     if v.title_visible {
-        let band = Rgba::new(0, 0, 0, 0x26);
+        let band = v.style.title_band();
         if v.rolled_up {
             c.fill_round_rect(title, radius, band);
         } else {

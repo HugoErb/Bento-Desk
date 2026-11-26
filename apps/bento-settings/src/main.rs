@@ -101,6 +101,7 @@ fn main() -> anyhow::Result<()> {
         .resolve(bento_win::system::ui_language());
 
     let ui = MainWindow::new().context("settings window")?;
+    bridge::install_color_util(&ui);
     bridge::apply_language(lang);
     let shared: bridge::Shared =
         Rc::new(RefCell::new(bridge::Ctl::new(paths, config, state, lang)));

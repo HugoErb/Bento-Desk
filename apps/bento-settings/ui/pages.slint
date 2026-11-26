@@ -3,7 +3,7 @@
 
 import { Button, Switch, ComboBox, Slider, SpinBox, LineEdit, TextEdit, AboutSlint } from "std-widgets.slint";
 import { Theme, App, Cfg, Desk, Style, Rules, Snaps, Sys } from "globals.slint";
-import { Glyph, PageHeader, SectionLabel, Card, Panel, HotkeyField, FencePreview, ScrollPage } from "widgets.slint";
+import { Glyph, PageHeader, SectionLabel, Card, Panel, HotkeyField, FencePreview, ScrollPage, ColorPicker } from "widgets.slint";
 
 /// Value shown next to a slider.
 component SliderValue inherits Text {
@@ -272,6 +272,7 @@ export component AppearancePage inherits ScrollPage {
     FencePreview {
         fill: Style.preview-fill;
         text-color: Style.preview-text;
+        title-fill: Style.preview-title-fill;
         title: Style.preview-title;
         title-mode: Style.title-mode;
         title-size: Style.title-size * 1px;
@@ -295,7 +296,7 @@ export component AppearancePage inherits ScrollPage {
             HorizontalLayout {
                 spacing: 10px;
                 alignment: start;
-                for c[i] in [#2b2f36, #1f3a5f, #0f4c4c, #2d4a22, #5a4214, #5c1f24, #3d2a5c, #e8e8e8]: Rectangle {
+                for c[i] in [#000000, #2b2f36, #1f3a5f, #0f4c4c, #2d4a22, #5a4214, #5c1f24, #3d2a5c, #e8e8e8]: Rectangle {
                     width: 34px;
                     height: 34px;
                     border-radius: 17px;
@@ -312,51 +313,18 @@ export component AppearancePage inherits ScrollPage {
             }
         }
 
-        Card {
-            title: @tr("Hue");
-            Slider {
-                width: 240px;
-                minimum: 0;
-                maximum: 359;
-                value <=> Style.hue;
-                changed => {
+        Panel {
+            Text {
+                text: @tr("Custom color");
+                color: Theme.text2;
+            }
+            ColorPicker {
+                hue <=> Style.hue;
+                saturation <=> Style.saturation;
+                lightness <=> Style.intensity;
+                edited => {
                     Style.changed();
                 }
-            }
-            SliderValue {
-                text: round(Style.hue) + "°";
-            }
-        }
-
-        Card {
-            title: @tr("Saturation");
-            Slider {
-                width: 240px;
-                minimum: 0;
-                maximum: 100;
-                value <=> Style.saturation;
-                changed => {
-                    Style.changed();
-                }
-            }
-            SliderValue {
-                text: round(Style.saturation) + " %";
-            }
-        }
-
-        Card {
-            title: @tr("Intensity");
-            Slider {
-                width: 240px;
-                minimum: 0;
-                maximum: 100;
-                value <=> Style.intensity;
-                changed => {
-                    Style.changed();
-                }
-            }
-            SliderValue {
-                text: round(Style.intensity) + " %";
             }
         }
 
@@ -460,10 +428,66 @@ export component AppearancePage inherits ScrollPage {
             title: @tr("Title color");
             ComboBox {
                 width: 200px;
-                model: [@tr("Automatic"), @tr("White"), @tr("Black")];
+                model: [@tr("Automatic"), @tr("White"), @tr("Black"), @tr("Custom")];
                 current-index <=> Style.title-color;
                 selected => {
                     Style.changed();
+                }
+            }
+        }
+
+        if Style.title-color == 3: Panel {
+            ColorPicker {
+                hue <=> Style.title-text-hue;
+                saturation <=> Style.title-text-saturation;
+                lightness <=> Style.title-text-lightness;
+                edited => {
+                    Style.changed();
+                }
+            }
+        }
+
+        Card {
+            title: @tr("Title background");
+            description: @tr("Automatic: the fence color, slightly darkened.");
+            ComboBox {
+                width: 200px;
+                model: [@tr("Automatic"), @tr("Custom")];
+                current-index <=> Style.title-bg-mode;
+                selected => {
+                    Style.changed();
+                }
+            }
+        }
+
+        if Style.title-bg-mode == 1: Panel {
+            ColorPicker {
+                hue <=> Style.title-bg-hue;
+                saturation <=> Style.title-bg-saturation;
+                lightness <=> Style.title-bg-lightness;
+                edited => {
+                    Style.changed();
+                }
+            }
+            HorizontalLayout {
+                spacing: 12px;
+                Text {
+                    text: @tr("Transparency");
+                    color: Theme.text;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                Slider {
+                    width: 240px;
+                    minimum: 0;
+                    maximum: 100;
+                    value <=> Style.title-bg-transparency;
+                    changed => {
+                        Style.changed();
+                    }
+                }
+                SliderValue {
+                    text: round(Style.title-bg-transparency) + " %";
                 }
             }
         }

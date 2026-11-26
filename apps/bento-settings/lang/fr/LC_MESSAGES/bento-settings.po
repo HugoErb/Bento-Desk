@@ -153,15 +153,6 @@ msgstr "Couleur"
 msgid "Presets"
 msgstr "Préréglages"
 
-msgid "Hue"
-msgstr "Teinte"
-
-msgid "Saturation"
-msgstr "Saturation"
-
-msgid "Intensity"
-msgstr "Intensité"
-
 msgid "Transparency"
 msgstr "Transparence"
 
@@ -665,3 +656,15 @@ msgstr "Aucun raccourci"
 
 msgid "Press a combination..."
 msgstr "Appuyez sur une combinaison..."
+
+msgid "Custom color"
+msgstr "Couleur personnalisée"
+
+msgid "Custom"
+msgstr "Personnalisée"
+
+msgid "Title background"
+msgstr "Fond du titre"
+
+msgid "Automatic: the fence color, slightly darkened."
+msgstr "Automatique : couleur de la fence, légèrement assombrie."

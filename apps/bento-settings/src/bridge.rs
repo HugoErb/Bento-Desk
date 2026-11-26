@@ -25,7 +25,8 @@ use slint::{ComponentHandle, ModelRc, SharedString, Timer, TimerMode, VecModel, 
 
 use crate::text::T;
 use crate::{
-    App, Cfg, CondRow, Desk, FenceRow, MainWindow, RuleRow, Rules, SnapRow, Snaps, Style, Sys,
+    App, Cfg, ColorUtil, CondRow, Desk, FenceRow, Hsl, MainWindow, RuleRow, Rules, SnapRow, Snaps,
+    Style, Sys,
 };
 
 const SAVE_DELAY: Duration = Duration::from_millis(300);
@@ -421,6 +422,7 @@ fn selected_fence(ctl: &Ctl, ui: &MainWindow) -> Option<FenceId> {
 
 /// Colors offered as presets: (hue, saturation, intensity).
 const PRESETS: &[(u16, u8, u8)] = &[
+    (0, 0, 0),
     (215, 12, 19),
     (213, 51, 25),
     (180, 67, 18),
@@ -462,11 +464,36 @@ fn to_color(c: Rgba) -> slint::Color {
     slint::Color::from_argb_u8(c.a, c.r, c.g, c.b)
 }
 
+const TITLE_WHITE: Rgba = Rgba::rgb(255, 255, 255);
+const TITLE_BLACK: Rgba = Rgba::rgb(0, 0, 0);
+
 fn title_color_index(c: Option<Rgba>) -> i32 {
     match c {
         None => 0,
-        Some(c) if luminance(c) >= 128 => 1,
-        Some(_) => 2,
+        Some(TITLE_WHITE) => 1,
+        Some(TITLE_BLACK) => 2,
+        Some(_) => 3,
+    }
+}
+
+/// Color from the picker values (hue in degrees, percentages).
+fn hsl_rgba(h: f32, s: f32, l: f32) -> Rgba {
+    Rgba::from_hsl(h, s / 100.0, l / 100.0, 255)
+}
+
+/// Picker values (hue in degrees, percentages) of a color.
+fn rgba_hsl(c: Rgba) -> (f32, f32, f32) {
+    let (h, s, l) = c.to_hsl();
+    let hue = (h.round() as i32).rem_euclid(360) as f32;
+    (hue, (s * 100.0).round(), (l * 100.0).round())
+}
+
+/// Default custom title band: the fence color, darker and a bit more opaque.
+fn default_title_background(st: &FenceStyle) -> Tint {
+    Tint {
+        intensity: st.tint.intensity.saturating_sub(8),
+        transparency: st.tint.transparency.saturating_sub(10),
+        ..st.tint
     }
 }
 
@@ -492,6 +519,18 @@ fn push_style(ctl: &Ctl, ui: &MainWindow) {
     s.set_title_size(f32::from(st.title_size));
     s.set_title_bold(st.title_bold);
     s.set_title_color(title_color_index(st.title_color));
+    let (th, ts, tl) = rgba_hsl(st.title_color.unwrap_or(TITLE_WHITE));
+    s.set_title_text_hue(th);
+    s.set_title_text_saturation(ts);
+    s.set_title_text_lightness(tl);
+    s.set_title_bg_mode(i32::from(st.title_background.is_some()));
+    let tb = st
+        .title_background
+        .unwrap_or_else(|| default_title_background(&st));
+    s.set_title_bg_hue(f32::from(tb.hue));
+    s.set_title_bg_saturation(f32::from(tb.saturation));
+    s.set_title_bg_lightness(f32::from(tb.intensity));
+    s.set_title_bg_transparency(f32::from(tb.transparency));
     s.set_corner_radius(f32::from(st.corner_radius));
     s.set_border(st.border);
     let title = match target_fence(ctl, ui) {
@@ -528,14 +567,30 @@ fn pull_style(ui: &MainWindow, base: &FenceStyle) -> FenceStyle {
     }
     st.title_size = clamp_u8(s.get_title_size()).clamp(8, 32);
     st.title_bold = s.get_title_bold();
-    let idx = s.get_title_color();
-    if idx != title_color_index(base.title_color) {
-        st.title_color = match idx {
-            1 => Some(Rgba::rgb(255, 255, 255)),
-            2 => Some(Rgba::rgb(0, 0, 0)),
-            _ => None,
-        };
-    }
+    st.title_color = match s.get_title_color() {
+        1 => Some(TITLE_WHITE),
+        2 => Some(TITLE_BLACK),
+        3 => {
+            let c = hsl_rgba(
+                s.get_title_text_hue(),
+                s.get_title_text_saturation(),
+                s.get_title_text_lightness(),
+            );
+            // Pure white or black would read back as the fixed choices.
+            Some(match c {
+                TITLE_WHITE => Rgba::rgb(254, 254, 254),
+                TITLE_BLACK => Rgba::rgb(1, 1, 1),
+                c => c,
+            })
+        }
+        _ => None,
+    };
+    st.title_background = (s.get_title_bg_mode() == 1).then(|| Tint {
+        hue: (s.get_title_bg_hue().round() as u16).min(359),
+        saturation: clamp_u8(s.get_title_bg_saturation()).min(100),
+        intensity: clamp_u8(s.get_title_bg_lightness()).min(100),
+        transparency: clamp_u8(s.get_title_bg_transparency()).min(100),
+    });
     st.corner_radius = clamp_u8(s.get_corner_radius()).min(32);
     st.border = s.get_border();
     st
@@ -545,11 +600,15 @@ fn update_preview(ui: &MainWindow, st: &FenceStyle) {
     let s = ui.global::<Style>();
     let fill = st.tint.to_rgba();
     s.set_preview_fill(to_color(fill));
+    s.set_preview_title_fill(to_color(st.title_band()));
     let text = st.title_color.unwrap_or_else(|| {
-        // Contrast against the tint laid over a mid-tone wallpaper.
+        // Contrast against the tint laid over a mid-tone wallpaper, then
+        // the title band laid over both.
         let a = u32::from(fill.a);
         let mix = |c: u8| ((u32::from(c) * a + 110 * (255 - a)) / 255) as u8;
-        let seen = Rgba::rgb(mix(fill.r), mix(fill.g), mix(fill.b));
+        let body = Rgba::rgb(mix(fill.r), mix(fill.g), mix(fill.b));
+        let band = st.title_band();
+        let seen = body.mix(band.with_alpha(255), f32::from(band.a) / 255.0);
         if luminance(seen) >= 150 {
             Rgba::rgb(20, 20, 20)
         } else {
@@ -946,6 +1005,26 @@ pub fn open_section(ctl: &Ctl, ui: &MainWindow, section: &str, fence: Option<u64
 }
 
 /// Connects every callback of the globals.
+/// Color conversions used by the color pickers. Installed right after the
+/// window is created, before any page binding evaluates them.
+pub fn install_color_util(ui: &MainWindow) {
+    let cu = ui.global::<ColorUtil>();
+    cu.on_hsl(|h, s, l| to_color(hsl_rgba(h, s, l)));
+    cu.on_to_hex(|h, s, l| hsl_rgba(h, s, l).to_hex().into());
+    cu.on_parse_hex(|t| match Rgba::from_hex(&t) {
+        Some(c) => {
+            let (hue, saturation, lightness) = rgba_hsl(c);
+            Hsl {
+                ok: true,
+                hue,
+                saturation,
+                lightness,
+            }
+        }
+        None => Hsl::default(),
+    });
+}
+
 pub fn install(ui: &MainWindow, shared: &Shared) {
     // Runs `f` with the window and the state, if both are available.
     macro_rules! on {
@@ -1447,6 +1526,18 @@ fn refresh_status_later(ctl: &Ctl, weak: Weak<MainWindow>, sh: Shared) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn title_color_choices_round_trip() {
+        assert_eq!(title_color_index(None), 0);
+        assert_eq!(title_color_index(Some(TITLE_WHITE)), 1);
+        assert_eq!(title_color_index(Some(TITLE_BLACK)), 2);
+        assert_eq!(title_color_index(Some(Rgba::rgb(200, 30, 30))), 3);
+        assert_eq!(hsl_rgba(0.0, 0.0, 0.0), TITLE_BLACK);
+        let (h, s, l) = rgba_hsl(Rgba::rgb(255, 0, 0));
+        assert_eq!((h, s, l), (0.0, 100.0, 50.0));
+        assert_eq!(hsl_rgba(h, s, l), Rgba::rgb(255, 0, 0));
+    }
 
     #[test]
     fn condition_edits() {

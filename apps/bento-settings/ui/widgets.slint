@@ -1,8 +1,8 @@
 // Building blocks of the pages: cards, headers, navigation items, the
 // shortcut recorder and the fence preview.
 
-import { Theme, Cfg } from "globals.slint";
-import { ScrollView } from "std-widgets.slint";
+import { Theme, Cfg, ColorUtil } from "globals.slint";
+import { ScrollView, LineEdit } from "std-widgets.slint";
 
 /// MDL2 glyph.
 export component Glyph inherits Text {
@@ -244,6 +244,7 @@ export component HotkeyField inherits Rectangle {
 export component FencePreview inherits Rectangle {
     in property <color> fill;
     in property <color> text-color;
+    in property <color> title-fill: #00000026;
     in property <string> title;
     in property <int> title-mode;
     in property <length> title-size;
@@ -289,7 +290,7 @@ export component FencePreview inherits Rectangle {
         VerticalLayout {
             if root.title-mode != 0: Rectangle {
                 height: 32px;
-                background: #ffffff08;
+                background: root.title-fill;
                 Text {
                     text: root.title;
                     color: root.text-color;
@@ -328,6 +329,147 @@ export component FencePreview inherits Rectangle {
                         horizontal-alignment: center;
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Color picker: saturation (horizontal) and lightness (vertical) area,
+/// hue bar, swatch and hexadecimal field. Values: hue in degrees,
+/// saturation and lightness in percent.
+export component ColorPicker inherits VerticalLayout {
+    in-out property <float> hue;
+    in-out property <float> saturation;
+    in-out property <float> lightness;
+    callback edited();
+    spacing: 10px;
+
+    function pick-sl(x: length, y: length) {
+        root.saturation = round(max(0, min(1, x / area.width)) * 100);
+        root.lightness = round((1 - max(0, min(1, y / area.height))) * 100);
+        root.edited();
+    }
+
+    function pick-hue(x: length) {
+        root.hue = round(max(0, min(1, x / bar.width)) * 359);
+        root.edited();
+    }
+
+    function sync-hex() {
+        hex.text = ColorUtil.to-hex(root.hue, root.saturation, root.lightness);
+    }
+
+    init => {
+        root.sync-hex();
+    }
+    changed hue => {
+        root.sync-hex();
+    }
+    changed saturation => {
+        root.sync-hex();
+    }
+    changed lightness => {
+        root.sync-hex();
+    }
+
+    area := Rectangle {
+        height: 150px;
+        border-radius: 6px;
+        clip: true;
+        background: @linear-gradient(90deg, ColorUtil.hsl(root.hue, 0, 50) 0%, ColorUtil.hsl(root.hue, 100, 50) 100%);
+        // Lightness 100 % at the top, 50 % in the middle, 0 % at the bottom:
+        // HSL is a straight blend towards white or black.
+        Rectangle {
+            y: 0;
+            height: parent.height / 2;
+            background: @linear-gradient(180deg, #ffffff 0%, #ffffff00 100%);
+        }
+
+        Rectangle {
+            y: parent.height / 2;
+            height: parent.height / 2;
+            background: @linear-gradient(180deg, #00000000 0%, #000000 100%);
+        }
+
+        Rectangle {
+            x: root.saturation / 100 * area.width - self.width / 2;
+            y: (1 - root.lightness / 100) * area.height - self.height / 2;
+            width: 14px;
+            height: 14px;
+            border-radius: 7px;
+            border-width: 2px;
+            border-color: root.lightness > 60 ? #000000 : #ffffff;
+            background: ColorUtil.hsl(root.hue, root.saturation, root.lightness);
+        }
+
+        TouchArea {
+            mouse-cursor: MouseCursor.crosshair;
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                    root.pick-sl(self.mouse-x, self.mouse-y);
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    root.pick-sl(self.mouse-x, self.mouse-y);
+                }
+            }
+        }
+    }
+
+    bar := Rectangle {
+        height: 14px;
+        border-radius: 7px;
+        background: @linear-gradient(90deg, #ff0000 0%, #ffff00 16.67%, #00ff00 33.33%, #00ffff 50%, #0000ff 66.67%, #ff00ff 83.33%, #ff0000 100%);
+        Rectangle {
+            x: root.hue / 359 * bar.width - self.width / 2;
+            width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            border-width: 2px;
+            border-color: #ffffff;
+            background: ColorUtil.hsl(root.hue, 100, 50);
+        }
+
+        TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                    root.pick-hue(self.mouse-x);
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    root.pick-hue(self.mouse-x);
+                }
+            }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: 10px;
+        alignment: start;
+        Rectangle {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border-width: 1px;
+            border-color: Theme.divider;
+            background: ColorUtil.hsl(root.hue, root.saturation, root.lightness);
+        }
+
+        hex := LineEdit {
+            width: 120px;
+            placeholder-text: "#RRGGBB";
+            accepted(t) => {
+                let c = ColorUtil.parse-hex(t);
+                if (c.ok) {
+                    root.hue = c.hue;
+                    root.saturation = c.saturation;
+                    root.lightness = c.lightness;
+                    root.edited();
+                }
+                root.sync-hex();
             }
         }
     }

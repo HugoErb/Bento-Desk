@@ -61,6 +61,9 @@ pub struct FenceStyle {
     pub title_bold: bool,
     /// `None` = automatic contrast with the background.
     pub title_color: Option<Rgba>,
+    /// Background of the title band. `None` = the fence color, slightly
+    /// darkened.
+    pub title_background: Option<Tint>,
     /// Corner radius in DIP.
     pub corner_radius: u8,
     pub border: bool,
@@ -77,9 +80,18 @@ impl Default for FenceStyle {
             title_size: 13,
             title_bold: false,
             title_color: None,
+            title_background: None,
             corner_radius: 8,
             border: true,
         }
+    }
+}
+
+impl FenceStyle {
+    /// Color painted over the fence background for the title band.
+    pub fn title_band(&self) -> Rgba {
+        self.title_background
+            .map_or(Rgba::new(0, 0, 0, 0x26), Tint::to_rgba)
     }
 }
 
@@ -420,6 +432,22 @@ mod tests {
             }],
             ..Fence::default()
         }
+    }
+
+    #[test]
+    fn title_band_default_and_custom() {
+        let mut st = FenceStyle::default();
+        assert_eq!(st.title_band(), Rgba::new(0, 0, 0, 0x26));
+        st.title_background = Some(Tint {
+            hue: 0,
+            saturation: 0,
+            intensity: 0,
+            transparency: 0,
+        });
+        assert_eq!(st.title_band(), Rgba::BLACK);
+        // Older files without the field keep loading.
+        let old: FenceStyle = serde_json::from_str(r#"{"title_bold":true}"#).unwrap();
+        assert_eq!(old.title_background, None);
     }
 
     #[test]

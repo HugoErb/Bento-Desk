@@ -114,6 +114,22 @@ export global Desk {
     callback refresh();
 }
 
+/// Result of parsing a hexadecimal color.
+export struct Hsl {
+    ok: bool,
+    hue: float,
+    saturation: float,
+    lightness: float,
+}
+
+/// Color conversions done on the Rust side. Hue in degrees, saturation and
+/// lightness in percent.
+export global ColorUtil {
+    pure callback hsl(float, float, float) -> color;
+    pure callback to-hex(float, float, float) -> string;
+    pure callback parse-hex(string) -> Hsl;
+}
+
 /// Style editor of the Appearance page.
 export global Style {
     in property <[string]> targets;
@@ -130,11 +146,22 @@ export global Style {
     in-out property <string> title-font;
     in-out property <float> title-size;
     in-out property <bool> title-bold;
+    /// 0 automatic, 1 white, 2 black, 3 custom (title-text-*).
     in-out property <int> title-color;
+    in-out property <float> title-text-hue;
+    in-out property <float> title-text-saturation;
+    in-out property <float> title-text-lightness;
+    /// 0 automatic, 1 custom (title-bg-*).
+    in-out property <int> title-bg-mode;
+    in-out property <float> title-bg-hue;
+    in-out property <float> title-bg-saturation;
+    in-out property <float> title-bg-lightness;
+    in-out property <float> title-bg-transparency;
     in-out property <float> corner-radius;
     in-out property <bool> border;
     in property <color> preview-fill;
     in property <color> preview-text;
+    in property <color> preview-title-fill;
     in property <string> preview-title;
     callback changed();
     callback target-changed();
