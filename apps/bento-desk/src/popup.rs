@@ -21,6 +21,25 @@ pub struct Popup {
     commands: Vec<Command>,
     dpi: u32,
     size: (i32, i32),
+    /// Point the menu was opened at and work area of its monitor, kept to
+    /// place the window again when a submenu changes its height.
+    at: Point,
+    work: Rect,
+}
+
+/// Places a `w` x `h` menu at `at`, flipped left or up when it would leave
+/// the work area.
+fn place_menu(at: Point, w: i32, h: i32, work: Rect) -> Rect {
+    let h = h.min(work.height());
+    let mut x = at.x;
+    let mut y = at.y;
+    if x + w > work.right {
+        x = (at.x - w).max(work.left);
+    }
+    if y + h > work.bottom {
+        y = (at.y - h).max(work.top);
+    }
+    Rect::from_xywh(x, y, w, h)
 }
 
 impl Popup {
@@ -175,16 +194,8 @@ impl App {
             .unwrap_or(Rect::from_xywh(0, 0, 1920, 1080));
         let menu = Menu::new(items);
         let (w, h) = menu.size(&self.gfx, dpi);
-        let h = h.min(work.height());
-        let mut x = at.x;
-        let mut y = at.y;
-        if x + w > work.right {
-            x = (at.x - w).max(work.left);
-        }
-        if y + h > work.bottom {
-            y = (at.y - h).max(work.top);
-        }
-        let rect = Rect::from_xywh(x, y, w, h);
+        let rect = place_menu(at, w, h, work);
+        let h = rect.height();
         let Ok(win) = window::create(
             CLASS_POPUP,
             "",
@@ -207,6 +218,8 @@ impl App {
             commands,
             dpi,
             size: (w, h),
+            at,
+            work,
         });
         self.render_popup();
         if let Some(p) = &self.popup {
@@ -250,6 +263,12 @@ impl App {
             MenuAction::Toggled => {
                 let w = p.size.0;
                 p.rows = p.menu.rows(p.dpi, w);
+                let rect = place_menu(p.at, w, p.menu.height(p.dpi), p.work);
+                if rect.height() != p.size.1 {
+                    p.size = (w, rect.height());
+                    p.surface = None;
+                    p.window.hwnd().set_rect(rect);
+                }
                 self.render_popup();
             }
             MenuAction::None => {}

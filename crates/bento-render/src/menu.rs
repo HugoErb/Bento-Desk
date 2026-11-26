@@ -192,8 +192,20 @@ impl Menu {
             .collect()
     }
 
-    /// Size of the whole menu, every submenu expanded (stable size).
+    /// Size of the menu: width fits every label, submenus included (stable
+    /// while expanding), height fits the rows currently shown.
     pub fn size(&self, gfx: &Gfx, dpi: u32) -> (i32, i32) {
+        let (w, _) = self.full_size(gfx, dpi);
+        (w, self.height(dpi))
+    }
+
+    /// Height of the rows currently shown, padding included.
+    pub fn height(&self, dpi: u32) -> i32 {
+        let (_, _, pad, _) = metrics(dpi);
+        self.rows(dpi, 0).last().map_or(0, |r| r.rect.bottom) + pad
+    }
+
+    fn full_size(&self, gfx: &Gfx, dpi: u32) -> (i32, i32) {
         let (rh, sh, pad, indent) = metrics(dpi);
         let s = scale(dpi);
         let st = TextStyle::new(UI_FONT, 14.0 * s, Rgba::BLACK);
@@ -410,6 +422,17 @@ mod tests {
         assert_eq!(m.activate(&rows, 4), MenuAction::Invoke(3));
         assert_eq!(m.activate(&rows, 2), MenuAction::Toggled);
         assert_eq!(m.rows(96, 200).len(), 4);
+    }
+
+    #[test]
+    fn height_follows_expanded_rows() {
+        let mut m = sample();
+        let collapsed = m.height(96);
+        // 3 rows of 32 + separator 9 + padding 4 on both sides.
+        assert_eq!(collapsed, 3 * 32 + 9 + 2 * 4);
+        let rows = m.rows(96, 200);
+        m.activate(&rows, 2);
+        assert_eq!(m.height(96), collapsed + 2 * 32);
     }
 
     #[test]

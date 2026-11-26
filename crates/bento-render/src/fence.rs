@@ -249,13 +249,19 @@ pub fn draw_frame(c: &mut Canvas<'_>, v: &FrameView<'_>, l: &FrameLayout, hover:
     // Title area: always hit-testable, drawn when visible.
     let title = RectF::from(l.title);
     if v.title_visible {
-        c.fill_round_rect(title, radius, Rgba::new(0, 0, 0, 0x26));
-        if !v.rolled_up {
-            // Square the bottom corners of the title band.
-            c.fill_rect(
-                RectF::new(title.left, title.bottom - radius, title.right, title.bottom),
-                Rgba::new(0, 0, 0, 0x26),
+        let band = Rgba::new(0, 0, 0, 0x26);
+        if v.rolled_up {
+            c.fill_round_rect(title, radius, band);
+        } else {
+            // Rounded top corners, square bottom ones, in a single fill: two
+            // overlapping translucent fills would leave a darker strip.
+            c.push_clip(title);
+            c.fill_round_rect(
+                RectF::new(title.left, title.top, title.right, title.bottom + radius),
+                radius,
+                band,
             );
+            c.pop_clip();
         }
     } else {
         c.fill_rect(title, HIT);
