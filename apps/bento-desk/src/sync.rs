@@ -82,9 +82,12 @@ pub fn targets(inp: &LayoutInput<'_>) -> BTreeMap<String, Point> {
                         let pl = place(&grid, present.len(), tab.scroll_row, p.rolled);
                         for (i, slot) in pl.visible {
                             let pos = slot.offset(shift.x, shift.y);
+                            // Shown once its image is inside: waiting for the
+                            // label too would reveal the last row of a fitted
+                            // fence only at the very end of the animation.
                             let cut = p
                                 .clip_bottom
-                                .is_some_and(|c| pos.y + inp.desktop_spacing.height > c);
+                                .is_some_and(|c| pos.y + inp.icon_size.max(1) > c);
                             if cut {
                                 park(present[i], &mut out);
                             } else {
